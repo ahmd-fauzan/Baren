@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
+  m_Name: YinLiu
+  m_EditorClassIdentifier: 
+  characterId: CH01
+  characterName: Yin Liu
+  characterImage: {fileID: 6299283874614594923, guid: 37afc6afeac50724e82a3398a4b83104,
+    type: 3}
+  characterPrefab: {fileID: 597971389104325496, guid: 15a98846559d5f6438e7099a0a73a37b,
+    type: 3}
+  walkSpeed: 1
+  runSpeed: 3
+  acceleration: 8
+  stamina: 100
+  staminaRegen: 2
+  cost: 30
