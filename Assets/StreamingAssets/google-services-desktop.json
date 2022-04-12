@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "579779477345",
+    "project_id": "gamedb-c30c3",
+    "firebase_url": "https://gamedb-c30c3-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    "storage_bucket": "gamedb-c30c3.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:579779477345:android:9a542a09a2f3a444afcf20",
+        "android_client_info": {
+          "package_name": "com.defaultcompany.baren2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "579779477345-e5ed8qm3jjl64dbtls5fjsumrtle6uau.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4pX8qIcLHr52W0IDaHn2cVk_B0FTmJR8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "579779477345-e5ed8qm3jjl64dbtls5fjsumrtle6uau.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
