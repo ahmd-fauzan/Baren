@@ -12,18 +12,34 @@ public class GameUserIntefacePage : MonoBehaviour
     Text playerNameText;
 
     [SerializeField]
-    private GameObject reward;
-
-    [SerializeField]
-    private GameObject loseReward;
-
-    [SerializeField]
     Text draftTimer;
+
+    [SerializeField]
+    Text roundTimer;
 
     [SerializeField]
     GameObject DraftPickUI;
 
-    List<Character> selectedCharacters;
+    [SerializeField]
+    GameObject roundUI;
+
+    [SerializeField]
+    Text playerScoreText;
+
+    [SerializeField]
+    Text enemyScoreText;
+
+    [SerializeField]
+    GameObject winMesage;
+
+    [SerializeField]
+    GameObject loseMessage;
+
+    [SerializeField]
+    Text winBattlePointText;
+
+    [SerializeField]
+    Text loseBattlePointText;
 
     private string playerType;
     public string PlayerType 
@@ -47,23 +63,41 @@ public class GameUserIntefacePage : MonoBehaviour
         draftTimer.text = timer.ToString();
     }
 
-    public void Reward()
-    {
-        reward.SetActive(true);
-    }
-
-    public void LoseReward()
-    {
-        loseReward.SetActive(true);
-    }
-
-    public List<Character> GetCharacters()
-    {
-        return selectedCharacters;
-    }
-
     public void HideDraftPick()
     {
         DraftPickUI.SetActive(false);
+    }
+
+    public void ActiveRoundUI()
+    {
+        roundUI.SetActive(true);
+    }
+
+    public void UpdateScore(int roundResult)
+    {
+        if (roundResult == 2)
+            playerScoreText.text = (int.Parse(playerScoreText.text) + 1).ToString();
+        else
+            enemyScoreText.text = (int.Parse(enemyScoreText.text) + 1).ToString();
+    }
+
+    public void UpdateTimer(int remainingTime)
+    {
+        int hours = remainingTime / 60;
+        int minutes = remainingTime % 60;
+
+        roundTimer.text = hours + ":" + minutes;
+    }
+
+    public void WinMessage(int battlePoint)
+    {
+        winMesage.SetActive(true);
+        winBattlePointText.text = battlePoint.ToString();
+    }
+
+    public void LoseMessage(int battlePoint)
+    {
+        loseMessage.SetActive(true);
+        loseBattlePointText.text = "-" + battlePoint.ToString();
     }
 }

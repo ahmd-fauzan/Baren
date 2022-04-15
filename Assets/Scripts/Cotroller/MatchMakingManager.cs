@@ -31,18 +31,24 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         return gameObject.AddComponent<MatchMakingManager>();
     }
 
-    public static void CreateRoom(string roomName, string status)
+    public static void CreateRoom(string roomName, int status)
     {
+        PlayerController playerController = GameObject.Find("PlayerController").GetComponent<PlayerController>();
+
+        History history = (ScriptableObject.CreateInstance<History> ());
+        history.MatchType = status;
+
+        playerController.AddHistoy(history);
+
         RoomOptions options = new RoomOptions();
         options.MaxPlayers = 2;
 
-        if (status == "Private")
+        if (status == 0)
         {
             options.IsVisible = false;
         }
 
         PhotonNetwork.CreateRoom(roomName, options, TypedLobby.Default);
-
     }
 
     public override void OnJoinedLobby()

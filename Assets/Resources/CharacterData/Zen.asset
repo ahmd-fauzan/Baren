@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterId: CH04
   characterName: Zen
-  characterImage: {fileID: 6299283874614594923, guid: 776e0b34e1a9de14a9ee16780d822447,
+  characterImage: {fileID: 4265969801652332166, guid: 6e22390d485256d40acd6ed9b38f2ef2,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: cc42c7ec5d7ed25458a04aa27dbefaee,
+  characterPrefab: {fileID: 597971389104325496, guid: 20af1c33627f95a46ba4234299d79063,
     type: 3}
   walkSpeed: 1
   runSpeed: 3
   acceleration: 8
-  stamina: 100
+  stamina: 30
   staminaRegen: 2
   cost: 30

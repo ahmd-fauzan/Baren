@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterId: CH02
   characterName: Anestia
-  characterImage: {fileID: 6299283874614594923, guid: 969b12368a9d5ac4e9f0297625acd135,
+  characterImage: {fileID: 4265969801652332166, guid: eb660f8a621ccf5409666cec72956eb5,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: a0963aa194b0d6e40aeddb537ca8f1b6,
+  characterPrefab: {fileID: 597971389104325496, guid: a62e654ed5cd4084d9a3cf0468a44711,
     type: 3}
   walkSpeed: 2
   runSpeed: 5
   acceleration: 9
-  stamina: 90
+  stamina: 20
   staminaRegen: 3
   cost: 20

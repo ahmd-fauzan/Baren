@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterId: CH03
   characterName: Dwi
-  characterImage: {fileID: 6299283874614594923, guid: b7b4212cceb44344ca73c98094ac91c6,
+  characterImage: {fileID: 4265969801652332166, guid: 6b0e7da86ab097741b7f0265076a4049,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: b17730e26424b6f4c81fbcd57b309c51,
+  characterPrefab: {fileID: 597971389104325496, guid: 7529f7dca2e7f8e4f829578ae0b7b63a,
     type: 3}
   walkSpeed: 1
   runSpeed: 3
   acceleration: 8
-  stamina: 100
+  stamina: 30
   staminaRegen: 2
   cost: 30

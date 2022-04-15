@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterId: CH01
   characterName: Yin Liu
-  characterImage: {fileID: 6299283874614594923, guid: 37afc6afeac50724e82a3398a4b83104,
+  characterImage: {fileID: 4265969801652332166, guid: 37afc6afeac50724e82a3398a4b83104,
     type: 3}
   characterPrefab: {fileID: 597971389104325496, guid: 15a98846559d5f6438e7099a0a73a37b,
     type: 3}
   walkSpeed: 1
   runSpeed: 3
   acceleration: 8
-  stamina: 100
+  stamina: 30
   staminaRegen: 2
   cost: 30

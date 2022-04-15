@@ -18,13 +18,16 @@ public class MatchMakingPage : MonoBehaviour
     [SerializeField]
     private Toggle privateToggle;
 
+    private const int PUBLICMATCH = 1;
+    private const int PRIVATEMATCH = 0;
+
     public void CreateRoom()
     {
         if (publicToggle.isOn)
-            MatchMakingManager.CreateRoom(PhotonNetwork.NickName, "Public");
+            MatchMakingManager.CreateRoom(PhotonNetwork.NickName, PUBLICMATCH);
 
         if (privateToggle.isOn)
-            MatchMakingManager.CreateRoom(roomCodeIF.text, "Private");
+            MatchMakingManager.CreateRoom(roomCodeIF.text, PRIVATEMATCH);
         
         //manager.CreateRoom()
     }

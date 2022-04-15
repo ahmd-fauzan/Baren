@@ -4,6 +4,7 @@ using UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
 using System.IO;
+using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
 public class GameManager : MonoBehaviourPunCallbacks
@@ -67,6 +68,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     private GameObject structure;
 
     private int countMyPrisoner = 0;
+    private int countEnemyPrisoner = 0;
 
     private string otherPlayerName;
 
@@ -80,6 +82,39 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     [SerializeField]
     int countCharacter;
+
+    [SerializeField]
+    private bool inRound;
+
+    [SerializeField]
+    private int playerWin;
+    private int enemyWin;
+
+    private float firstClickTime;
+    private float timeBetweenClicks;
+    private int clickCounter;
+    private bool coroutineAllowed;
+
+    private const int ENEMYLEFT = -1;
+    private const int DRAWROUND = 0;
+    private const int LOSEROUND = 1;
+    private const int WINROUND = 2;
+
+    private const int WALK = 1;
+    private const int RUN = 2;
+
+    private const int WINBATTLEPOINT = 10;
+    private const int LOSEBATTLEPOINT = -8;
+
+    Coroutine draftCoroutine;
+    Coroutine roundCoroutine;
+    Coroutine characterCoroutine;
+
+    [SerializeField]
+    private bool resetingPosition;
+
+    public delegate void ResetPositionCallback();
+    ResetPositionCallback resetPositionCallback;
 
     public class BaseLocation
     {
@@ -109,14 +144,19 @@ public class GameManager : MonoBehaviourPunCallbacks
         DraftPick();
     }
 
-
+    private void Start()
+    {
+        firstClickTime = 0f;
+        timeBetweenClicks = 0.2f;
+        clickCounter = 0;
+        coroutineAllowed = true;
+    }
     // Update is called once per frame
     void Update()
     {
-        
         GameObject[] allGo = GameObject.FindGameObjectsWithTag("Character");
 
-        if(enemyCharacter.Count <= countCharacter)
+        if (enemyCharacter.Count <= countCharacter)
         {
             foreach (GameObject go in allGo)
             {
@@ -124,34 +164,145 @@ public class GameManager : MonoBehaviourPunCallbacks
                     enemyCharacter.Add(go);
             }
         }
-        
+
         //Touch touch = Input.GetTouch(0);
 
-        if (Input.GetMouseButton(0))//touch.phase == TouchPhase.Began)
+        if (Input.GetMouseButtonUp(0))//touch.phase == TouchPhase.Began)
         {
+            clickCounter += 1;
+
             Ray ray = currentCamera.ScreenPointToRay(Input.mousePosition);//Input.GetTouch(0).position);
-            
+
+            //float timeSinceLastClick = Time.time - lastTimeClick;
+
             TouchCharacter(ray);
-            TouchDestination(ray);
+
+            if (clickCounter == 1 && coroutineAllowed)
+            {
+                firstClickTime = Time.time;
+                StartCoroutine(DoubleClickDetection(ray));
+            }
+
+            /*if (timeSinceLastClick < .2f)
+            {
+                Debug.Log("Time Click : " + timeSinceLastClick);
+                TouchDestination(ray, 1);
+            }
+            else
+                TouchDestination(ray, 2);*/
+
+
+            //lastTimeClick = Time.time;
+            //StartCoroutine("WaitClickTime");
         }
+
+        
 
         if (characterSelected != null)
         {
             if (characterSelected.GetComponent<CharacterMovement>().Value == -1)
                 characterSelected = null;
         }
+
+        if(bases != null)
+        {
+            //if (IsCharacterInBase() && !IsGameFinished())
+              //  inRound = true;
+
+            UpdateCharacterRotation();
+        }
+
+        if (resetingPosition)
+        {
+            if (IsCharacterInBase())
+            {
+                resetingPosition = false;
+                PlayRound();
+            }
+                
+        }
+            
     }
 
-    IEnumerator Countdown(int seconds)
+    public override void OnPlayerLeftRoom(Player otherPlayer)
+    {
+        playerWin = 3;
+        CalculateRoundResult();
+    }
+
+    IEnumerator DoubleClickDetection(Ray ray)
+    {
+        coroutineAllowed = false;
+        while (Time.time < firstClickTime + timeBetweenClicks)
+        {
+            if(clickCounter == 2)
+            {
+                TouchDestination(ray, RUN);
+                break;
+            }
+            yield return new WaitForEndOfFrame();
+        }
+
+        if (clickCounter == 1)
+            TouchDestination(ray, WALK);
+
+        clickCounter = 0;
+        firstClickTime = 0;
+        coroutineAllowed = true;
+    }
+    private bool IsCharacterInBase()
+    {
+        foreach (BaseLocation b in bases)
+        {
+            if (!b.Filled && b.Character.GetComponent<CharacterMovement>().Value != 0)
+                return false;
+        }
+        return true;
+    }
+
+    private void CalculateRoundResult()
+    {
+        PlayerController playerController = GameObject.Find("PlayerController").GetComponent<PlayerController>();
+
+        if (playerWin == 3)
+        {
+            playerController.UpdateHistory(1, WINBATTLEPOINT);
+            gamePage.WinMessage(WINBATTLEPOINT);
+        }
+
+        else
+        {
+            playerController.UpdateHistory(1, -LOSEBATTLEPOINT);
+            gamePage.LoseMessage(-LOSEBATTLEPOINT);
+        }
+            
+
+        //Hitung prisoner
+    }
+
+    IEnumerator Countdown(int timerType, int seconds)
     {
         int counter = seconds;
         while (counter > 0)
         {
             yield return new WaitForSeconds(1);
             counter--;
-            gamePage.SetDraftTimer(counter);
+            if (timerType == 1)
+                gamePage.SetDraftTimer(counter);
+            else if (timerType == 2)
+                gamePage.UpdateTimer(counter);
         }
-        gamePage.HideDraftPick();
+        if (timerType == 1)
+        {
+            gamePage.HideDraftPick();
+            gamePage.ActiveRoundUI();
+            PlayRound();
+        }
+
+        else if (timerType == 2)
+            view.RPC("StorePrisoner", RpcTarget.Others, countMyPrisoner);
+        else if (timerType == 3)
+            RoundEnded(LOSEROUND);
         //Instantiate();
     }
 
@@ -169,7 +320,7 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     }*/
 
-    private string GetStatus()
+    public string GetStatus()
     {
         if (PhotonNetwork.PlayerList[0] == PhotonNetwork.LocalPlayer)
         {
@@ -184,53 +335,46 @@ public class GameManager : MonoBehaviourPunCallbacks
         return "";
     }
 
-    
-
-    
-
     public int AddValue()
     {
         currentValue = currentValue + 1;
         return currentValue;
     }
 
-    public void LoadScene(){
+    public void LoadScene() {
         PhotonNetwork.LoadLevel("Match");
     }
 
     public void UpdateBaseLocation(Transform character)
     {
-        for(int i = 0; i < bases.Count; i++)
+        for (int i = 0; i < bases.Count; i++)
         {
-            if(bases[i].Filled)
+            if (bases[i].Character.name == character.name)
             {
-                if (bases[i].Character.name == character.name)
+                if (bases[i].Filled)
                 {
                     if (character.GetComponent<CharacterMovement>().Value == 0)
                         bases[i].Filled = false;
-                    else
+                }
+                else
+                {
+                    if (character.GetComponent<CharacterMovement>().Value != 0)
                         bases[i].Filled = true;
                 }
             }
-            
         }
     }
 
     public void ReleaseCharacter()
     {
-        for(int i = bases.Count; i >= 0; i--)
+        foreach (BaseLocation b in bases)
         {
-            CharacterMovement charMove = bases[i].Character.GetComponent<CharacterMovement>();
+            CharacterMovement charMove = b.Character.GetComponent<CharacterMovement>();
 
-            if (charMove.Value == -1)
+            if (!b.Filled && charMove.Value == -1)
             {
-                Vector3 location = GetSpawnLocation(bases[i].Character.GetComponent<Transform>());
-                if (location != new Vector3(0, 0, 0))
-                {
-                    charMove.Status = 1;
-                    charMove.Move(location);
-
-                }
+                charMove.Status = 1;
+                charMove.Move(b.Location.position, WALK);
             }
             countMyPrisoner = 0;
         }
@@ -240,7 +384,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         gamePage.SetOtherPlayerName(otherPlayerName);
         SpawnDraftCharacter();
-        StartCoroutine(Countdown(30));
+        StartCoroutine(Countdown(1, 15));
     }
 
     public void SetcharacterSelected(Transform selected)
@@ -281,7 +425,7 @@ public class GameManager : MonoBehaviourPunCallbacks
                 spawn = cost10Point;
             }
 
-            GameObject go = SpawnCard(list[i], spawn);
+            GameObject go = SpawnCard(list[i], spawn, false);
             AddEvent(new GameObject[] { go }, list[i]);
         }
     }
@@ -296,7 +440,7 @@ public class GameManager : MonoBehaviourPunCallbacks
         EventTrigger trigger = go[0].GetComponent<EventTrigger>();
         EventTrigger.Entry entry = new EventTrigger.Entry();
         entry.eventID = EventTriggerType.PointerClick;
-        if(character != null)
+        if (character != null)
             entry.callback.AddListener((functionIWant) => { AddCharacter(character); });
         else
             entry.callback.AddListener((functionIWant) => { SetcharacterSelected(go[1].GetComponent<Transform>()); });
@@ -305,7 +449,7 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     public void AddCharacter(Character character)
     {
-        SpawnCard(character, myPoint);
+        SpawnCard(character, myPoint, false);
 
         CallRPCMethod("SelectCharacter", character.characterId);
 
@@ -316,20 +460,127 @@ public class GameManager : MonoBehaviourPunCallbacks
             bases = new List<BaseLocation>();
 
         Transform spawn;
-        if(myStatus == "Player1")
+        if (myStatus == "Player1")
             spawn = spawnLocations[bases.Count];
         else
             spawn = spawnLocations[bases.Count + 5];
 
         GameObject go = SpawnCharacter(character, spawn);
-        GameObject cardGo = SpawnCard(character, characterSelection.GetComponent<Transform>());
-
-        AddEvent(new GameObject[] { cardGo, go }, null);
+        
         bases.Add(new BaseLocation(spawn, go.transform, true));
     }
 
     #endregion
 
+    #region Round
+    private void PlayRound()
+    {
+        if (!IsGameFinished())
+        {
+            inRound = true;
+
+            if (roundCoroutine != null)
+                StopCoroutine(roundCoroutine);
+            if (characterCoroutine != null)
+                StopCoroutine(characterCoroutine);
+
+            roundCoroutine = StartCoroutine(Countdown(2, 180));
+            characterCoroutine = StartCoroutine(Countdown(3, 20));
+        }
+        else
+            CalculateRoundResult();
+    }
+
+    public void RoundEnded(int roundResult)
+    {
+        if (!inRound)
+            return;
+
+        inRound = false;
+
+        switch (roundResult)
+        {
+            case LOSEROUND:
+                enemyWin++;
+                view.RPC("RoudResult", RpcTarget.Others, WINROUND);
+                break;
+            case WINROUND:
+                playerWin++;
+                view.RPC("RoudResult", RpcTarget.Others, LOSEROUND);
+                break;
+        }
+
+        if(playerWin == 3 || enemyWin == 3)
+        {
+            CalculateRoundResult();
+            return;
+        }
+
+        StopCoroutine(roundCoroutine);
+        StopCoroutine(characterCoroutine);
+
+        gamePage.UpdateScore(roundResult);
+
+        ResetCharacterPosition();
+    }
+
+    private void UpdateCharacterRotation()
+    {
+        foreach(BaseLocation b in bases)
+        {
+            CharacterMovement c = b.Character.GetComponent<CharacterMovement>();
+            if(c.Value == -1)
+            {
+                Vector3 rotation;
+
+                if(myStatus == "Player1")
+                    rotation = prisonerLocations[5].GetChild(0).rotation.eulerAngles;
+                else
+                    rotation = prisonerLocations[0].GetChild(0).rotation.eulerAngles;
+
+                b.Character.rotation = Quaternion.Euler(0, rotation.y, 0);
+            }
+            
+            if(c.Value == 0)
+            {
+                Vector3 rotation = b.Location.rotation.eulerAngles;
+
+                b.Character.rotation = Quaternion.Euler(0, rotation.y, 0);
+            }
+        }
+    }
+    private void ResetCharacterPosition()
+    {
+        resetingPosition = true;
+
+        foreach(BaseLocation b in bases)
+        {
+            CharacterMovement character = b.Character.GetComponent<CharacterMovement>();
+            if(!b.Filled && character.Value != 0)
+            {
+                character.Move(b.Location.position, WALK);
+            }
+        }
+    }
+
+    private bool IsGameFinished()
+    {
+        if (playerWin == 3 || enemyWin == 3 || (playerWin + enemyWin == 5))
+            return true;
+        return false;
+    }
+
+    private void CalculateResult()
+    {
+        if (countMyPrisoner < countEnemyPrisoner)
+            RoundEnded(WINROUND);
+        else if (countMyPrisoner > countEnemyPrisoner)
+            RoundEnded(LOSEROUND);
+        else
+            RoundEnded(DRAWROUND);
+    }
+
+    #endregion
     public void DestroyMarkLocation()
     {
         if (markObject != null)
@@ -343,17 +594,28 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         CharacterMovement characterMovement = go.GetComponent<CharacterMovement>();
 
-        characterMovement.SetAttribute(character.runSpeed, character.acceleration, character.stamina, character.characterName, 0);
+        GameObject cardGo = SpawnCard(character, characterSelection.GetComponent<Transform>(), true);
+
+        AddEvent(new GameObject[] { cardGo, go }, null);
+
+        Slider slider = cardGo.GetComponent<Transform>().GetChild(1).GetComponent<Slider>();
+        slider.maxValue = character.stamina;
+        characterMovement.SetCharacter(character, slider);
 
         return go;
     }
 
-    public GameObject SpawnCard(Character character, Transform spawn)
+    public GameObject SpawnCard(Character character, Transform spawn, bool sliderActive)
     {
         GameObject go = Instantiate(character.characterImage, spawn.position, spawn.rotation);
         //go.GetComponent<Image>().sprite = sprites[i]; //Set the Sprite of the Image Component on the new GameObject
         RectTransform rect = go.GetComponent<RectTransform>();
+       
         rect.SetParent(spawn.transform); //Assign the newly created Image GameObject as a Child of the Parent Panel
+        go.GetComponent<Transform>().localScale = Vector3.one;
+
+        go.GetComponent<Transform>().GetChild(1).gameObject.SetActive(sliderActive);
+
         return go;
     }
 
@@ -390,8 +652,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         foreach (BaseLocation b in bases)
         {
-            Debug.Log("Update Base : " + b.Character + " : " + character.name);
-
             if(b.Character.name == character.name)
             {
                 if (!b.Filled)
@@ -407,7 +667,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     #endregion
 
     #region Touch
-    void TouchDestination(Ray ray)
+    void TouchDestination(Ray ray, int touchCount)
     {
         RaycastHit hit;
 
@@ -416,9 +676,13 @@ public class GameManager : MonoBehaviourPunCallbacks
             if (hit.collider.CompareTag("Ground") && !hit.collider.CompareTag("Character") && characterSelected != null)
             {
                 CharacterMovement characterMovement = characterSelected.GetComponent<CharacterMovement>().GetInstance();
-                characterMovement.Move(hit.point);
+                characterMovement.Move(hit.point, touchCount);
                 DestroyMarkLocation();
                 SpawnMarkLocation(hit.point);
+
+                if (characterCoroutine != null)
+                    StopCoroutine(characterCoroutine);
+                characterCoroutine = StartCoroutine(Countdown(3, 20));
             }
         }
 
@@ -483,8 +747,21 @@ public class GameManager : MonoBehaviourPunCallbacks
     public void SelectCharacter(string characterId)
     {
         CharacterController controller = GameObject.Find("CharacterController").GetComponent<CharacterController>();
-        SpawnCard(controller.GetCharacterById(characterId), enemyPoint);
+        SpawnCard(controller.GetCharacterById(characterId), enemyPoint, false);
         countCharacter++;
+    }
+
+    [PunRPC]
+    public void RoundResult(int roundResult)
+    {
+        RoundEnded(roundResult);
+    }
+
+    [PunRPC]
+    public void StorePrisoner(int countPrisoner)
+    {
+        countEnemyPrisoner = countPrisoner;
+        CalculateResult();
     }
     #endregion
 
