@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
-  m_Name: Dwi
+  m_Name: Ratna
   m_EditorClassIdentifier: 
-  characterId: CH03
-  characterName: Dwi
-  characterImage: {fileID: 4265969801652332166, guid: 5db7921c01b41dd4e94ccbbac79c4355,
+  characterId: CH01
+  characterName: Ratna
+  characterImage: {fileID: 4265969801652332166, guid: 37afc6afeac50724e82a3398a4b83104,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 7529f7dca2e7f8e4f829578ae0b7b63a,
+  characterPrefab: {fileID: 597971389104325496, guid: 15a98846559d5f6438e7099a0a73a37b,
     type: 3}
   walkSpeed: 1
   runSpeed: 3

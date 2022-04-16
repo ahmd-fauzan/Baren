@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
-  m_Name: Dwi
+  m_Name: Astan
   m_EditorClassIdentifier: 
-  characterId: CH03
-  characterName: Dwi
-  characterImage: {fileID: 4265969801652332166, guid: 5db7921c01b41dd4e94ccbbac79c4355,
+  characterId: CH04
+  characterName: Zen
+  characterImage: {fileID: 4265969801652332166, guid: 4248091b21f717f41bfabf243e3a1309,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 7529f7dca2e7f8e4f829578ae0b7b63a,
+  characterPrefab: {fileID: 597971389104325496, guid: 20af1c33627f95a46ba4234299d79063,
     type: 3}
   walkSpeed: 1
   runSpeed: 3
   acceleration: 8
   stamina: 30
   staminaRegen: 2
-  cost: 30
+  cost: 10

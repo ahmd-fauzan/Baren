@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
-  m_Name: Dwi
+  m_Name: Diaz
   m_EditorClassIdentifier: 
-  characterId: CH03
-  characterName: Dwi
-  characterImage: {fileID: 4265969801652332166, guid: 5db7921c01b41dd4e94ccbbac79c4355,
+  characterId: CH07
+  characterName: Diaz
+  characterImage: {fileID: 4265969801652332166, guid: 4b8cbac609e92554bb647bb730a214a5,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 7529f7dca2e7f8e4f829578ae0b7b63a,
+  characterPrefab: {fileID: 597971389104325496, guid: 15841fed816903049a6862d65b78b39e,
     type: 3}
   walkSpeed: 1
   runSpeed: 3
   acceleration: 8
   stamina: 30
   staminaRegen: 2
-  cost: 30
+  cost: 10

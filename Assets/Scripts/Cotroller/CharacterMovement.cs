@@ -134,7 +134,7 @@ public class CharacterMovement : MonoBehaviour
                 if (agent.remainingDistance > agent.stoppingDistance)
                 {
                     animator.SetFloat("Moving", agent.speed);
-
+                    gameManager.StartCharacterTimer();
                 }
                 else
                 {

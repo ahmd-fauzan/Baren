@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterId: CH05
   characterName: Sinestia
-  characterImage: {fileID: 4265969801652332166, guid: f5894fc814b900741944d47c40dafd3d,
+  characterImage: {fileID: 4265969801652332166, guid: acee4aa4001c1604895615268246b0d7,
     type: 3}
   characterPrefab: {fileID: 597971389104325496, guid: 06d13799d5082c1459111fc442e137a9,
     type: 3}
@@ -23,4 +23,4 @@ MonoBehaviour:
   acceleration: 8
   stamina: 30
   staminaRegen: 2
-  cost: 30
+  cost: 10

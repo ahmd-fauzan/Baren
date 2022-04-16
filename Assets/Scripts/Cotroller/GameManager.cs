@@ -59,6 +59,9 @@ public class GameManager : MonoBehaviourPunCallbacks
     [SerializeField]
     private GameObject markObject;
 
+    [SerializeField]
+    private GameObject characterTimer;
+
     Vector3 cursorPosition;
 
     Vector3 truePos;
@@ -106,9 +109,16 @@ public class GameManager : MonoBehaviourPunCallbacks
     private const int WINBATTLEPOINT = 10;
     private const int LOSEBATTLEPOINT = -8;
 
+    private int costPoint;
+
+    private Color myImageColor = new Color32(154, 154, 154, 140);
+    private Color enemyImageColor = new Color32(48, 48, 48, 140);
+
     Coroutine draftCoroutine;
     Coroutine roundCoroutine;
     Coroutine characterCoroutine;
+
+    List<GameObject> cardAvailable;
 
     [SerializeField]
     private bool resetingPosition;
@@ -140,6 +150,8 @@ public class GameManager : MonoBehaviourPunCallbacks
         currentCamera = GameObject.Find("CameraManager").GetComponent<CameraManager>().GetCamera(myStatus);
 
         currentValue = 0;
+
+        costPoint = 100;
 
         DraftPick();
     }
@@ -230,6 +242,12 @@ public class GameManager : MonoBehaviourPunCallbacks
         CalculateRoundResult();
     }
 
+    public void StartCharacterTimer()
+    {
+        characterTimer.SetActive(false);
+        characterCoroutine = StartCoroutine(Countdown(3, 20));
+    }
+
     IEnumerator DoubleClickDetection(Ray ray)
     {
         coroutineAllowed = false;
@@ -275,9 +293,6 @@ public class GameManager : MonoBehaviourPunCallbacks
             playerController.UpdateHistory(1, -LOSEBATTLEPOINT);
             gamePage.LoseMessage(-LOSEBATTLEPOINT);
         }
-            
-
-        //Hitung prisoner
     }
 
     IEnumerator Countdown(int timerType, int seconds)
@@ -291,6 +306,11 @@ public class GameManager : MonoBehaviourPunCallbacks
                 gamePage.SetDraftTimer(counter);
             else if (timerType == 2)
                 gamePage.UpdateTimer(counter);
+            else if(timerType == 3)
+            {
+                if (counter <= 5)
+                    characterTimer.SetActive(true);
+            }
         }
         if (timerType == 1)
         {
@@ -427,6 +447,11 @@ public class GameManager : MonoBehaviourPunCallbacks
 
             GameObject go = SpawnCard(list[i], spawn, false);
             AddEvent(new GameObject[] { go }, list[i]);
+            
+            if (cardAvailable == null)
+                cardAvailable = new List<GameObject>();
+
+            cardAvailable.Add(go);
         }
     }
 
@@ -439,19 +464,53 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         EventTrigger trigger = go[0].GetComponent<EventTrigger>();
         EventTrigger.Entry entry = new EventTrigger.Entry();
+
         entry.eventID = EventTriggerType.PointerClick;
         if (character != null)
+        {
+            entry.callback.AddListener((functionIWant) => { UpdateCardImage(go[0], myStatus); });
             entry.callback.AddListener((functionIWant) => { AddCharacter(character); });
+        }
         else
             entry.callback.AddListener((functionIWant) => { SetcharacterSelected(go[1].GetComponent<Transform>()); });
+
         trigger.triggers.Add(entry);
+    }
+
+    public void RemoveEventTrigger(EventTrigger eventTrigger) {
+        if (!isAvailableSelect())
+            return;
+
+        eventTrigger.triggers.RemoveRange(0, eventTrigger.triggers.Count);
+    }
+    public void UpdateCardImage(GameObject go, string playerType)
+    {
+        Debug.Log(go.name);
+
+        if (!isAvailableSelect())
+            return;
+
+        go.transform.GetChild(1).gameObject.SetActive(true);
+        Image image = go.transform.GetChild(1).GetComponent<Image>();
+
+        if (myStatus == playerType)
+            image.color = myImageColor;
+        else
+            image.color = enemyImageColor;
+
+        RemoveEventTrigger(go.GetComponent<EventTrigger>());
     }
 
     public void AddCharacter(Character character)
     {
+        
+
+        if (!isAvailableSelect())
+            return;
+
         SpawnCard(character, myPoint, false);
 
-        CallRPCMethod("SelectCharacter", character.characterId);
+        CallRPCMethod("SelectCharacter", character.characterId, character.cost, myStatus);
 
         if (selectedCharacters == null)
             selectedCharacters = new List<Character>();
@@ -460,6 +519,7 @@ public class GameManager : MonoBehaviourPunCallbacks
             bases = new List<BaseLocation>();
 
         Transform spawn;
+
         if (myStatus == "Player1")
             spawn = spawnLocations[bases.Count];
         else
@@ -468,6 +528,28 @@ public class GameManager : MonoBehaviourPunCallbacks
         GameObject go = SpawnCharacter(character, spawn);
         
         bases.Add(new BaseLocation(spawn, go.transform, true));
+
+        UpdateCostPoint(character.cost);
+    }
+
+    private bool isAvailableSelect()
+    {
+        if (bases == null)
+            return true;
+
+        if(bases != null)
+        {
+            if (bases.Count < 5 && costPoint > 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void UpdateCostPoint(int characterCost)
+    {
+        costPoint -= characterCost;
+        gamePage.UpdateCostPoint(costPoint);
     }
 
     #endregion
@@ -484,6 +566,7 @@ public class GameManager : MonoBehaviourPunCallbacks
             if (characterCoroutine != null)
                 StopCoroutine(characterCoroutine);
 
+            characterTimer.SetActive(false);
             roundCoroutine = StartCoroutine(Countdown(2, 180));
             characterCoroutine = StartCoroutine(Countdown(3, 20));
         }
@@ -502,11 +585,11 @@ public class GameManager : MonoBehaviourPunCallbacks
         {
             case LOSEROUND:
                 enemyWin++;
-                view.RPC("RoudResult", RpcTarget.Others, WINROUND);
+                view.RPC("RoundResult", RpcTarget.Others, WINROUND);
                 break;
             case WINROUND:
                 playerWin++;
-                view.RPC("RoudResult", RpcTarget.Others, LOSEROUND);
+                view.RPC("RoundResult", RpcTarget.Others, LOSEROUND);
                 break;
         }
 
@@ -598,7 +681,7 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         AddEvent(new GameObject[] { cardGo, go }, null);
 
-        Slider slider = cardGo.GetComponent<Transform>().GetChild(1).GetComponent<Slider>();
+        Slider slider = cardGo.GetComponent<Transform>().GetChild(2).GetComponent<Slider>();
         slider.maxValue = character.stamina;
         characterMovement.SetCharacter(character, slider);
 
@@ -614,7 +697,7 @@ public class GameManager : MonoBehaviourPunCallbacks
         rect.SetParent(spawn.transform); //Assign the newly created Image GameObject as a Child of the Parent Panel
         go.GetComponent<Transform>().localScale = Vector3.one;
 
-        go.GetComponent<Transform>().GetChild(1).gameObject.SetActive(sliderActive);
+        go.GetComponent<Transform>().GetChild(2).gameObject.SetActive(sliderActive);
 
         return go;
     }
@@ -682,7 +765,7 @@ public class GameManager : MonoBehaviourPunCallbacks
 
                 if (characterCoroutine != null)
                     StopCoroutine(characterCoroutine);
-                characterCoroutine = StartCoroutine(Countdown(3, 20));
+                
             }
         }
 
@@ -744,10 +827,21 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     #region RPC
     [PunRPC]
-    public void SelectCharacter(string characterId)
+    public void SelectCharacter(string characterId, int cost, string playerType)
     {
         CharacterController controller = GameObject.Find("CharacterController").GetComponent<CharacterController>();
         SpawnCard(controller.GetCharacterById(characterId), enemyPoint, false);
+        Transform parent = GameObject.Find("Cost" + cost).transform.GetChild(0).GetComponent<Transform>();
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Debug.Log(parent.GetChild(i).name + " : " + "Img" + characterId + "(Clone)");
+            if(parent.GetChild(i).name == "Img" + characterId + "(Clone)")
+            {
+                UpdateCardImage(parent.GetChild(i).gameObject, playerType);
+                break;
+            }
+        }
+        
         countCharacter++;
     }
 
@@ -765,8 +859,8 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
     #endregion
 
-    public void CallRPCMethod(string methodName, string characterId)
+    public void CallRPCMethod(string methodName, string characterId, int cost, string playerType)
     {
-        view.RPC(methodName, RpcTarget.Others, characterId);
+        view.RPC(methodName, RpcTarget.Others, characterId, cost, playerType);
     }
 }

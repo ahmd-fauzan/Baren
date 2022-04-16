@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
-  m_Name: YinLiu
+  m_Name: Yusuf
   m_EditorClassIdentifier: 
-  characterId: CH01
-  characterName: Yin Liu
-  characterImage: {fileID: 4265969801652332166, guid: 37afc6afeac50724e82a3398a4b83104,
+  characterId: CH010
+  characterName: Yusuf
+  characterImage: {fileID: 4265969801652332166, guid: 203ce90d629489647b8cea0e703309af,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 15a98846559d5f6438e7099a0a73a37b,
+  characterPrefab: {fileID: 597971389104325496, guid: 546e933b3307b144bb9482bb9903f181,
     type: 3}
   walkSpeed: 1
   runSpeed: 3

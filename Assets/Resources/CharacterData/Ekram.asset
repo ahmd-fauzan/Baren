@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
-  m_Name: Zen
+  m_Name: Ekram
   m_EditorClassIdentifier: 
-  characterId: CH04
-  characterName: Zen
-  characterImage: {fileID: 4265969801652332166, guid: 6e22390d485256d40acd6ed9b38f2ef2,
+  characterId: CH08
+  characterName: Ekram
+  characterImage: {fileID: 4265969801652332166, guid: 60d67b68425253f42affc41c8124b444,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 20af1c33627f95a46ba4234299d79063,
+  characterPrefab: {fileID: 597971389104325496, guid: a83085bb0bc03a64dae4584328538d1a,
     type: 3}
   walkSpeed: 1
   runSpeed: 3
   acceleration: 8
   stamina: 30
   staminaRegen: 2
-  cost: 30
+  cost: 20

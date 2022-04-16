@@ -41,6 +41,9 @@ public class GameUserIntefacePage : MonoBehaviour
     [SerializeField]
     Text loseBattlePointText;
 
+    [SerializeField]
+    Text costPointText;
+
     private string playerType;
     public string PlayerType 
     { 
@@ -99,5 +102,10 @@ public class GameUserIntefacePage : MonoBehaviour
     {
         loseMessage.SetActive(true);
         loseBattlePointText.text = "-" + battlePoint.ToString();
+    }
+
+    public void UpdateCostPoint(int costPoint)
+    {
+        costPointText.text = costPoint + " Point";
     }
 }
