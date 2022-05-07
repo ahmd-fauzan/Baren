@@ -4,15 +4,32 @@ using UnityEngine;
 
 public class History : ScriptableObject
 {
-    private int battlePoint;
-    private int matchResult;
-    private int matchType;
+    public string historyID;
+    public int battlePoint;
+    public int matchResult;
+    public int matchType;
 
-    public History(int matchType)
+    public History(string historyID, int battlePoint, int matchResult, int matchType)
     {
+        this.historyID = historyID;
+        this.battlePoint = battlePoint;
+        this.matchResult = matchResult;
         this.matchType = matchType;
     }
 
+
+    public string HistoryID
+    {
+        get
+        {
+            return this.HistoryID;
+        }
+
+        set
+        {
+            this.HistoryID = value;
+        }
+    }
     public int BattlePoint
     {
         get
