@@ -14,6 +14,8 @@ public class CharacterMovement : MonoBehaviour
     [SerializeField]
     private int value;
 
+    RoundManager roundManager;
+
     GameManager gameManager;
 
     private Animator animator;
@@ -46,6 +48,11 @@ public class CharacterMovement : MonoBehaviour
         this.staminaBar = staminaBar;
         InitAgent();
         SetAttribute(character.walkSpeed, character.acceleration);
+    }
+
+    public Character GetCharacter()
+    {
+        return this.character;
     }
 
     public int Status
@@ -85,6 +92,8 @@ public class CharacterMovement : MonoBehaviour
         if(view.IsMine)
             StartCoroutine(UpdateStamina());
 
+        roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>();
+        
         gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
 
         moving = false;
@@ -107,6 +116,7 @@ public class CharacterMovement : MonoBehaviour
     IEnumerator RotateAgent(Quaternion currentRotation, Quaternion targetRotation)
     {
         IsRotating = true;
+
         while (currentRotation != targetRotation) {
 
             transform.rotation = Quaternion.RotateTowards(currentRotation, targetRotation, 120f * Time.deltaTime);
@@ -114,9 +124,14 @@ public class CharacterMovement : MonoBehaviour
             yield return 1;
         }
         IsRotating = false;
-        agent.enabled = true;
+        //agent.enabled = true;
         
         agent.SetDestination(location);
+    }
+
+    private void LookCharacter(Vector3 target)
+    {
+        transform.LookAt(target);
     }
 
     private void Update()
@@ -134,13 +149,18 @@ public class CharacterMovement : MonoBehaviour
                 if (agent.remainingDistance > agent.stoppingDistance)
                 {
                     animator.SetFloat("Moving", agent.speed);
-                    gameManager.StartCharacterTimer();
                 }
                 else
                 {
                     animator.SetFloat("Moving", -1f);
-
+                    
                     moving = false;
+
+                    /*
+                    if(this.value == -1)
+                    {
+                        rigid.constraints = RigidbodyConstraints.FreezeAll;
+                    }*/
                 }
 
                 if (currStamina <= 0)
@@ -200,7 +220,7 @@ public class CharacterMovement : MonoBehaviour
     {
         if(currStamina > 0)
         {
-            agent.enabled = false;
+            //agent.enabled = false;
 
             moving = true;
 
@@ -209,11 +229,15 @@ public class CharacterMovement : MonoBehaviour
             else
                 UpdateSpeed(character.walkSpeed);
 
-            Vector3 direction = (location - transform.position).normalized;
-            Quaternion lookRotation = Quaternion.LookRotation(direction);
+            LookCharacter(location);
 
-            StartCoroutine(RotateAgent(transform.rotation, lookRotation));
-            this.location = location;
+            agent.SetDestination(location);
+
+            //Vector3 direction = (location - transform.position).normalized;
+            //Quaternion lookRotation = Quaternion.LookRotation(direction);
+
+            //StartCoroutine(RotateAgent(transform.rotation, lookRotation));
+            //this.location = location;
         }
         
     }
@@ -238,10 +262,6 @@ public class CharacterMovement : MonoBehaviour
         outline.OutlineColor = Color.white;
         outline.OutlineWidth = 3;
 
-        //view.RPC("GetIdOutline", RpcTarget.All, this.value, "show");
-
-        //view.RPC("TesMethod", RpcTarget.All, view.ViewID);
-
         return true;
     }
 
@@ -249,12 +269,11 @@ public class CharacterMovement : MonoBehaviour
     {
         Outline outline = GetComponent<Outline>();
         outline.OutlineWidth = 0;
-
-        //view.RPC("GetIdOutline", RpcTarget.All, this.value, "stop");
     }
 
     private void OnCollisionEnter(Collision collision)
     {
+
         if (collision.transform.tag == "Character")
         {
             CharacterMovement character = collision.collider.GetComponent<CharacterMovement>();
@@ -265,8 +284,9 @@ public class CharacterMovement : MonoBehaviour
                 {
                     if (this.value < character.Value)
                     {
-                        Move(gameManager.GetPrisoner(), 2);
-                        status = -1;
+                        Move(roundManager.GetPrisoner(), 2);
+                        this.value = -1;
+                        StopOutline();
                     }
                 }
             }
@@ -274,73 +294,82 @@ public class CharacterMovement : MonoBehaviour
             if (view.IsMine && character.GetComponent<PhotonView>().IsMine)
             {
                 if (character.Value == -1 && this.Value != -1)
-                    gameManager.ReleaseCharacter();
+                    roundManager.ReleaseCharacter();
             }
         }
 
-        if (gameManager.GetStatus() == "Player1")
+        if (collision.transform.tag == "EnemyFlag")
         {
-            if (collision.transform.tag == "EnemyFlag")
+            if (view.IsMine && gameManager.GetStatus() == "Player1")
             {
-                gameManager.RoundEnded(2);
-                
-            }
-        }
-        else if (!PhotonNetwork.IsMasterClient)
-        {
-
-            if (collision.transform.tag == "PlayerFlag")
-            {
-                gameManager.RoundEnded(2);
+                roundManager.SetRound(2);
             }
         }
         
+        if(collision.transform.tag == "PlayerFlag")
+        {
+            if (view.IsMine && gameManager.GetStatus() == "Player2")
+            {
+                roundManager.SetRound(2);
+            }
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (PhotonNetwork.IsMasterClient)
+        if (gameManager.GetStatus() == "Player1")
         {
             if (other.transform.tag == "PlayerBaseLine" && view.IsMine)
             {
-                gameManager.UpdateBaseLocation(this.transform);
-
                 if (value == 0)
-                    value = gameManager.AddValue();
+                    value = roundManager.AddValue();
                 else
                     value = 0;
+
+                roundManager.UpdateBaseLocation(this.transform);
             }
 
             if (other.transform.tag == "EnemyBaseLine" && !view.IsMine)
             {
-                gameManager.UpdateBaseLocation(this.transform);
-
                 if (value == 0)
-                    value = gameManager.AddValue();
+                {
+                    value = roundManager.AddValue();
+                    roundManager.StartOneOutline(this.GetInstance());
+                }
                 else
+                {
                     value = 0;
+                    StopOutline();
+                }
             }
         }
         else
         {
             if (other.transform.tag == "EnemyBaseLine" && view.IsMine)
             {
-                gameManager.UpdateBaseLocation(this.transform);
-
                 if (value == 0)
-                    value = gameManager.AddValue();
+                    value = roundManager.AddValue();
                 else
                     value = 0;
+
+                roundManager.UpdateBaseLocation(this.transform);
+
             }
 
             if (other.transform.tag == "PlayerBaseLine" && !view.IsMine)
             {
-                gameManager.UpdateBaseLocation(this.transform);
-
                 if (value == 0)
-                    value = gameManager.AddValue();
+                {
+                    value = roundManager.AddValue();
+                    roundManager.StartOneOutline(this.GetInstance());
+                }
                 else
+                {
                     value = 0;
+                    StopOutline();
+                }
+
+
             }
         }
         
@@ -349,6 +378,7 @@ public class CharacterMovement : MonoBehaviour
             Destroy(other.gameObject, 0.5f);
         }
 
+        /*
         if(other.transform.tag == "Prisoner1" && gameManager.GetStatus() == "Player1" && this.status == -1)
         {
             this.value = -1;
@@ -357,7 +387,7 @@ public class CharacterMovement : MonoBehaviour
         if (other.transform.tag == "Prisoner2" && gameManager.GetStatus() == "Player2" && this.status == -1)
         {
             this.value = -1;
-        }
+        }*/
     }
 
     public void EnemyOutline(Color color, int width)
@@ -365,12 +395,5 @@ public class CharacterMovement : MonoBehaviour
         Outline outline = GetComponent<Outline>();
         outline.OutlineColor = color;
         outline.OutlineWidth = width;
-    }
-
-    [PunRPC]
-    public void ShowLose()
-    {
-        GameObject gameManager = GameObject.Find("GameManager");
-        //gameManager.GetComponent<GameManager>().LoseReward();
     }
 }

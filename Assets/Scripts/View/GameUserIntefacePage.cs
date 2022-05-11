@@ -9,16 +9,7 @@ using UnityEngine.UI;
 public class GameUserIntefacePage : MonoBehaviour
 {
     [SerializeField]
-    Text playerNameText;
-
-    [SerializeField]
-    Text draftTimer;
-
-    [SerializeField]
     Text roundTimer;
-
-    [SerializeField]
-    GameObject DraftPickUI;
 
     [SerializeField]
     GameObject roundUI;
@@ -42,7 +33,7 @@ public class GameUserIntefacePage : MonoBehaviour
     Text loseBattlePointText;
 
     [SerializeField]
-    Text costPointText;
+    GameObject cardSelectionUI;
 
     private string playerType;
     public string PlayerType 
@@ -56,21 +47,6 @@ public class GameUserIntefacePage : MonoBehaviour
         } 
     }
 
-    public void SetOtherPlayerName(string playerName)
-    {
-        playerNameText.text = playerName;
-    }
-
-    public void SetDraftTimer(int timer)
-    {
-        draftTimer.text = timer.ToString();
-    }
-
-    public void HideDraftPick()
-    {
-        DraftPickUI.SetActive(false);
-    }
-
     public void ActiveRoundUI()
     {
         roundUI.SetActive(true);
@@ -82,6 +58,12 @@ public class GameUserIntefacePage : MonoBehaviour
             playerScoreText.text = (int.Parse(playerScoreText.text) + 1).ToString();
         else
             enemyScoreText.text = (int.Parse(enemyScoreText.text) + 1).ToString();
+    }
+
+    public void ShowScore(int myScore, int enemyScore)
+    {
+        playerScoreText.text = myScore.ToString();
+        enemyScoreText.text = enemyScore.ToString();
     }
 
     public void UpdateTimer(int remainingTime)
@@ -104,8 +86,8 @@ public class GameUserIntefacePage : MonoBehaviour
         loseBattlePointText.text = "-" + battlePoint.ToString();
     }
 
-    public void UpdateCostPoint(int costPoint)
+    public void HideCardSelection()
     {
-        costPointText.text = costPoint + " Point";
+        cardSelectionUI.SetActive(!cardSelectionUI.activeInHierarchy);
     }
 }

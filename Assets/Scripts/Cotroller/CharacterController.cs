@@ -1,15 +1,20 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class CharacterController : MonoBehaviour
 {
     [SerializeField]
     private Character[] characterList;
 
+    private List<Character> selectedCharacter;
+
     private void Awake()
     {
         characterList = Resources.LoadAll<Character>("CharacterData");
+
         DontDestroyOnLoad(this.gameObject);
     }
 
@@ -28,4 +33,15 @@ public class CharacterController : MonoBehaviour
 
         return null;
     }
+
+    public void SetSelectedCharacter(List<Character> selectedCharacter)
+    {
+        this.selectedCharacter = selectedCharacter;
+    }
+
+    public List<Character> GetSelectedCharacter()
+    {
+        return this.selectedCharacter;
+    }
+    
 }

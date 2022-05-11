@@ -1,122 +1,25 @@
-using Firebase;
 using Firebase.Database;
 using UnityEngine;
-using UnityEngine.UI;
-using Firebase.Auth;
 using System.Collections;
+using System.Collections.Generic;
 using System;
 using System.Linq;
-using UnityEngine.SceneManagement;
 
-
-public class DatabaseManager : MonoBehaviour
+public class DatabaseManager : ScriptableObject
 {
-    public InputField Name;
-    public InputField Gold;
-    public Text totalWinsTXT, totalLosesTXT, totalDrawsTXT, text,battlePointTXT,userNameTXT, userName2TXT, userIDTXT;
-
-
-    private string userID;
-    private int lastHistoryIndex = -1;
-
-    private DatabaseReference dbReference;
-
-    public SceneSwitcher SceneSwitcherScript;
-
-
-    // Start is called before the first frame update
-    void Start()
-    {
-
-        SignOut();      
-        dbReference = FirebaseDatabase.DefaultInstance.RootReference;
-        /* CreateUser();*/
-        //Register();
-       /* SignIn();*/
-        //GetUserInfo();
-
-        /*       StartCoroutine(LoadPlayers());
-               CreateUser();
-               StartCoroutine(LoadPlayers());*/
-
-
-    }
-
-
-    public void CreateUser()
+    public void CreateUser(DatabaseReference reference)
     {
         User newUser = new User("Shanks", 2);
         string json = JsonUtility.ToJson(newUser);
         Debug.Log("json create user: " + json);
 
-        dbReference.Child("Players").Child(/*userID*/"DD11").SetRawJsonValueAsync(json);
+        reference.Child("Players").Child(/*userID*/"DD11").SetRawJsonValueAsync(json);
     }
 
-    public void Register()
-    {
-        FirebaseAuth auth = FirebaseAuth.DefaultInstance;
-        auth.CreateUserWithEmailAndPasswordAsync("12345678@gmail.com", "12345678").ContinueWith(task => {
-            if (task.IsCanceled)
-            {
-                Debug.LogError("CreateUserWithEmailAndPasswordAsync was canceled.");
-                return;
-            }
-            if (task.IsFaulted)
-            {
-                Debug.LogError("CreateUserWithEmailAndPasswordAsync encountered an error: " + task.Exception);
-                return;
-            }
-
-            // Firebase user has been created.
-            Firebase.Auth.FirebaseUser newUser = task.Result;
-            Debug.LogFormat("Firebase user created successfully: {0} ({1})",
-                newUser.DisplayName, newUser.UserId);
-            userID = newUser.UserId;
-            Debug.Log("UserID" + userID);
-
-        });
-    }
-
-    public void SignIn()
+    public IEnumerator GetName(DatabaseReference reference, string userID, Action<string> onCallback)
     {
 
-        FirebaseAuth auth = FirebaseAuth.DefaultInstance;
-        auth.SignInWithEmailAndPasswordAsync("12345678@gmail.com", "12345678").ContinueWith(task => {
-            if (task.IsCanceled)
-            {
-                Debug.LogError("SignInWithEmailAndPasswordAsync was canceled.");
-                return;
-            }
-            if (task.IsFaulted)
-            {
-                Debug.LogError("SignInWithEmailAndPasswordAsync encountered an error: " + task.Exception);
-                return;
-            }
-
-
-            Firebase.Auth.FirebaseUser newUser = task.Result;
-            Debug.LogFormat("User signed in successfully: {0} ({1})",
-                newUser.DisplayName, newUser.UserId);
-            userID = newUser.UserId;
-            Debug.Log("UserID" + userID);
-            SceneManager.LoadScene("Profile");
-
-            Debug.Log("sdf");
-    
-
-        });    
-    }
-
-
-    private void SignOut()
-    {
-        FirebaseAuth auth = FirebaseAuth.DefaultInstance;
-        auth.SignOut();
-    }
-
-    public IEnumerator GetName(Action<string> onCallback)
-    {
-        var userNameData = dbReference.Child("Players").Child(userID).Child("name").GetValueAsync();
+        var userNameData = reference.Child("Players").Child(userID).Child("name").GetValueAsync();
 
         yield return new WaitUntil(predicate: () => userNameData.IsCompleted);
 
@@ -128,10 +31,9 @@ public class DatabaseManager : MonoBehaviour
 
     }
 
-
-    public IEnumerator GetGold(Action<int> onCallback)
+    public IEnumerator GetGold(DatabaseReference reference, string userID, Action<int> onCallback)
     {
-        var userGoldData = dbReference.Child("Players").Child(userID).Child("gold").GetValueAsync();
+        var userGoldData = reference.Child("Players").Child(userID).Child("gold").GetValueAsync();
 
         yield return new WaitUntil(predicate: () => userGoldData.IsCompleted);
 
@@ -143,9 +45,9 @@ public class DatabaseManager : MonoBehaviour
     }
 
      
-    public void GetUserInfo()
+    public void GetUserInfo(DatabaseReference reference, string userID)
     {
-        StartCoroutine(GetName((string name) =>
+        /*StartCoroutine(GetName(reference, userID, (string name) =>
         {
             Debug.Log("nameinfo: "+name);
         }));
@@ -153,21 +55,21 @@ public class DatabaseManager : MonoBehaviour
         StartCoroutine(GetGold((int gold) =>
         {
             Debug.Log("goldinfo: " + gold);
-        }));
+        }));*/
 
 
     }
 
     public void getListPlayers()
     {
-        StartCoroutine(LoadPlayers());
+        //StartCoroutine(LoadPlayers());
     }
 
-    public IEnumerator LoadPlayers()
+    public IEnumerator LoadPlayers(DatabaseReference reference, string userID)
     {
         Debug.Log("IEstart get statistci");
 
-        var historyReference = dbReference.Child("Players").Child(userID).Child("History");
+        var historyReference = reference.Child("Players").Child(userID).Child("History");
 
         var DBTask = historyReference.GetValueAsync();
 
@@ -203,11 +105,12 @@ public class DatabaseManager : MonoBehaviour
 
     }
 
-    public IEnumerator IgetStatistic()
+
+    public IEnumerator IgetStatistic(DatabaseReference reference, string userID)
     {
         Debug.Log("IEstart get statistci");
 
-        var historyReference = dbReference.Child("Players").Child(userID).Child("History");
+        var historyReference = reference.Child("Players").Child(userID).Child("History");
 
         var DBTask = historyReference.GetValueAsync();
 
@@ -239,10 +142,10 @@ public class DatabaseManager : MonoBehaviour
                     lose++;           
             }
 
-            Debug.Log("win lose draw:" + win + lose + draw);
+            /*Debug.Log("win lose draw:" + win + lose + draw);
             totalWinsTXT.text = win.ToString();
             totalLosesTXT.text = lose.ToString();
-            totalDrawsTXT.text = draw.ToString();
+            totalDrawsTXT.text = draw.ToString();*/
 
         }
 
@@ -252,15 +155,15 @@ public class DatabaseManager : MonoBehaviour
     public void getStatistic()
     {
         Debug.Log("start get statistci");
-        StartCoroutine(IgetStatistic());
+        //StartCoroutine(IgetStatistic());
     }
 
 
 
 
-    public IEnumerator LoadLastIndex()
+    public IEnumerator AddHistory(History history, DatabaseReference reference, string userID)
     {
-        var historyReference = dbReference.Child("Players").Child(userID).Child("History");
+        var historyReference = reference.Child("Players").Child(userID).Child("History");
 
         var DBTask = historyReference.GetValueAsync();
 
@@ -279,41 +182,29 @@ public class DatabaseManager : MonoBehaviour
             int Historylength = snapshot.Children.Reverse<DataSnapshot>().Count();
         
             lastindex = Historylength - 1;
-            this.lastHistoryIndex = lastindex;
             Debug.Log("last index in load last index: " + lastindex );
-            createHistory();
+            CreateHistory(history, lastindex, reference, userID);
 
         }
     }
 
-
-
-    public void getLastIndexHistory()
+    public void CreateHistory(History history, int lastIndex, DatabaseReference reference, string userID)
     {
-        Debug.Log("start get last index history");
-        StartCoroutine(LoadLastIndex()) ;
+        history.HistoryID = "HS" + lastIndex;
 
-    }
+        string json = JsonUtility.ToJson(history);
 
-    public void createHistory()
-    {
-        //getLastIndexHistory();
+        reference.Child("Players").Child(userID).Child("History").Child((lastIndex+1).ToString()).SetRawJsonValueAsync(json);
 
-        History newHistory = new History("HS19", 1,1,2);
-        string json = JsonUtility.ToJson(newHistory);
-        Debug.Log("Json: " + json + "hIndex"+this.lastHistoryIndex);
-        Debug.Log(this.lastHistoryIndex);
-        dbReference.Child("Players").Child(userID).Child("History").Child((this.lastHistoryIndex+1).ToString()).SetRawJsonValueAsync(json);
         Debug.Log("Create History");
     }
 
 
-    public void setBattlePointAndUsernameTXT()
+    /*public void setBattlePointAndUsernameTXT()
     {
         StartCoroutine(GetBattlePoint((int battlePoint) =>
         {
             Debug.Log("battlePointINfo: " + battlePoint);
-            battlePointTXT.text = battlePoint.ToString();
 
             //settext batltepoint
         }));
@@ -322,7 +213,6 @@ public class DatabaseManager : MonoBehaviour
         StartCoroutine(GetUsername((string userName) =>
         {
             Debug.Log("userName Infor: " + userName);
-            userNameTXT.text = userName.ToString();
 
             //settext batltepoint
         }));
@@ -358,14 +248,13 @@ public class DatabaseManager : MonoBehaviour
 
     public void setUserIDTXT()
     {
-        userIDTXT.text = userID;
     }
 
     // Update is called once per frame
     void Update()
     {
 
-    }
+    }*/
 
    
 }

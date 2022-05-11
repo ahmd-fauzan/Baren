@@ -15,6 +15,14 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     // Start is called before the first frame update
     void Start()
     {
+        if (PhotonNetwork.IsConnected)
+        {
+            if (PhotonNetwork.CurrentRoom != null)
+                PhotonNetwork.LeaveRoom();
+            return;
+        }
+
+        PhotonNetwork.AutomaticallySyncScene = true;
         PhotonNetwork.NickName = "Baren " + Random.Range(0, 999);
         PhotonNetwork.GameVersion = gameVersion;
         PhotonNetwork.ConnectUsingSettings();
@@ -23,7 +31,22 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     private void LoadScene()
     {
         if (PhotonNetwork.CurrentRoom.PlayerCount == 2)
-            PhotonNetwork.LoadLevel("Match");
+        {
+            if(PhotonNetwork.IsMasterClient)
+                StartCoroutine(GoScene("DraftPick"));
+        }
+            
+    }
+
+    public IEnumerator GoScene(string sceneName)
+    {
+        PhotonNetwork.LoadLevel(sceneName);
+
+        while (PhotonNetwork.LevelLoadingProgress < 1)
+        {
+            Debug.Log("Loading Level : " + (PhotonNetwork.LevelLoadingProgress * 100) + "%");
+            yield return new WaitForEndOfFrame();
+        }
     }
 
     public MatchMakingManager GetInstance()
@@ -69,6 +92,11 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         PhotonNetwork.JoinLobby();
     }
 
+    public override void OnLeftRoom()
+    {
+        Debug.Log("Connected to master");
+        status.text = "Leaved Room";
+    }
     public override void OnCreatedRoom()
     {
         Debug.Log("Room berhasil dibuat");
