@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
-  m_Name: Anestia
+  m_Name: Aneisha
   m_EditorClassIdentifier: 
   characterId: CH02
-  characterName: Anestia
+  characterName: Aneisha
   characterImage: {fileID: 4265969801652332166, guid: 643a10d2e295aba49a76811076cb688a,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: a62e654ed5cd4084d9a3cf0468a44711,
+  characterPrefab: {fileID: 6097881788472692817, guid: a62e654ed5cd4084d9a3cf0468a44711,
     type: 3}
-  walkSpeed: 2
-  runSpeed: 5
-  acceleration: 9
+  walkSpeed: 0.4
+  runSpeed: 2
+  acceleration: 7
   stamina: 20
-  staminaRegen: 3
+  staminaRegen: 2
   cost: 20

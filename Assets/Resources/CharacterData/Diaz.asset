@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
   m_Name: Diaz
   m_EditorClassIdentifier: 
-  characterId: CH07
+  characterId: CH06
   characterName: Diaz
-  characterImage: {fileID: 4265969801652332166, guid: 4b8cbac609e92554bb647bb730a214a5,
+  characterImage: {fileID: 4265969801652332166, guid: 995c5ee624fa6f243a5f7eac3d38eaa3,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 15841fed816903049a6862d65b78b39e,
+  characterPrefab: {fileID: 3058098763687745039, guid: ebe51afe54760f142a619913f2b62e2d,
     type: 3}
   walkSpeed: 1
   runSpeed: 3

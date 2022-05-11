@@ -12,15 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
   m_Name: Sinestia
   m_EditorClassIdentifier: 
-  characterId: CH05
+  characterId: CH03
   characterName: Sinestia
-  characterImage: {fileID: 4265969801652332166, guid: acee4aa4001c1604895615268246b0d7,
+  characterImage: {fileID: 4265969801652332166, guid: 5db7921c01b41dd4e94ccbbac79c4355,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 06d13799d5082c1459111fc442e137a9,
+  characterPrefab: {fileID: 8828453547444058426, guid: 7529f7dca2e7f8e4f829578ae0b7b63a,
     type: 3}
-  walkSpeed: 1
-  runSpeed: 3
+  walkSpeed: 0.4
+  runSpeed: 1.7
   acceleration: 8
-  stamina: 30
+  stamina: 20
   staminaRegen: 2
   cost: 10

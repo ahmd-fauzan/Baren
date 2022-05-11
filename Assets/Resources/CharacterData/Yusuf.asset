@@ -12,15 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
   m_Name: Yusuf
   m_EditorClassIdentifier: 
-  characterId: CH010
+  characterId: CH10
   characterName: Yusuf
   characterImage: {fileID: 4265969801652332166, guid: 203ce90d629489647b8cea0e703309af,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 546e933b3307b144bb9482bb9903f181,
+  characterPrefab: {fileID: 1811332592989530003, guid: e7117a980192df143b754906969536ca,
     type: 3}
-  walkSpeed: 1
-  runSpeed: 3
-  acceleration: 8
+  walkSpeed: 0.6
+  runSpeed: 2.7
+  acceleration: 7
   stamina: 30
-  staminaRegen: 2
+  staminaRegen: 3
   cost: 30

@@ -12,15 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
   m_Name: Putri
   m_EditorClassIdentifier: 
-  characterId: CH09
+  characterId: CH08
   characterName: Putri
-  characterImage: {fileID: 4265969801652332166, guid: 34f77cf585f9c424e9db00de288fd3f8,
+  characterImage: {fileID: 4265969801652332166, guid: 60d67b68425253f42affc41c8124b444,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 3ce0a4b52a1bee04494b2611332f8889,
+  characterPrefab: {fileID: 5383090307750627744, guid: 4d6a0391e0edae247bf99fec4ce12515,
     type: 3}
-  walkSpeed: 1
-  runSpeed: 3
+  walkSpeed: 0.5
+  runSpeed: 2.5
   acceleration: 8
   stamina: 30
-  staminaRegen: 2
+  staminaRegen: 3
   cost: 20

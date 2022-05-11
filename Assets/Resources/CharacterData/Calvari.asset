@@ -12,15 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
   m_Name: Calvari
   m_EditorClassIdentifier: 
-  characterId: CH06
+  characterId: CH05
   characterName: Calvari
-  characterImage: {fileID: 4265969801652332166, guid: 995c5ee624fa6f243a5f7eac3d38eaa3,
+  characterImage: {fileID: 4265969801652332166, guid: acee4aa4001c1604895615268246b0d7,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: b8dcfe660e681744c956fee71a1c105e,
+  characterPrefab: {fileID: 3724587195415656150, guid: 06d13799d5082c1459111fc442e137a9,
     type: 3}
-  walkSpeed: 1
-  runSpeed: 3
-  acceleration: 8
-  stamina: 30
+  walkSpeed: 0.3
+  runSpeed: 2.2
+  acceleration: 6
+  stamina: 20
   staminaRegen: 2
   cost: 20

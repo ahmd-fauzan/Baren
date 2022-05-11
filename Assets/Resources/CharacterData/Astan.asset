@@ -16,11 +16,11 @@ MonoBehaviour:
   characterName: Zen
   characterImage: {fileID: 4265969801652332166, guid: 4248091b21f717f41bfabf243e3a1309,
     type: 3}
-  characterPrefab: {fileID: 597971389104325496, guid: 20af1c33627f95a46ba4234299d79063,
+  characterPrefab: {fileID: 3417468836794577146, guid: 20af1c33627f95a46ba4234299d79063,
     type: 3}
-  walkSpeed: 1
-  runSpeed: 3
-  acceleration: 8
-  stamina: 30
-  staminaRegen: 2
+  walkSpeed: 0.3
+  runSpeed: 1.5
+  acceleration: 4
+  stamina: 20
+  staminaRegen: 1
   cost: 10
