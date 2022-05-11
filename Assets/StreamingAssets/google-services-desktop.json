@@ -1,34 +1,71 @@
 {
   "project_info": {
-    "project_number": "579779477345",
-    "project_id": "gamedb-c30c3",
-    "firebase_url": "https://gamedb-c30c3-default-rtdb.asia-southeast1.firebasedatabase.app/",
-    "storage_bucket": "gamedb-c30c3.appspot.com"
+    "project_number": "1084557798458",
+    "firebase_url": "https://authg-788b8-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "authg-788b8",
+    "storage_bucket": "authg-788b8.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:579779477345:android:9a542a09a2f3a444afcf20",
+        "mobilesdk_app_id": "1:1084557798458:android:ae11eb1a17521b5dc15903",
         "android_client_info": {
-          "package_name": "com.defaultcompany.baren2"
+          "package_name": "com.DefaultCompany.Firebase"
         }
       },
       "oauth_client": [
         {
-          "client_id": "579779477345-e5ed8qm3jjl64dbtls5fjsumrtle6uau.apps.googleusercontent.com",
+          "client_id": "1084557798458-rm7nkonupai72kni42k5aj2lfh0r9f77.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.DefaultCompany.Firebase",
+            "certificate_hash": "0760d7981d6fba78653804a4b1e3ef110addf9ec"
+          }
+        },
+        {
+          "client_id": "1084557798458-8nhbpclkjbngi34sn1s01sg4q4hvjo7a.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyD4pX8qIcLHr52W0IDaHn2cVk_B0FTmJR8"
+          "current_key": "AIzaSyB9gwBYLpJoFNnKcaEo_eDo1ngQmn7E8qw"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "579779477345-e5ed8qm3jjl64dbtls5fjsumrtle6uau.apps.googleusercontent.com",
+              "client_id": "1084557798458-8nhbpclkjbngi34sn1s01sg4q4hvjo7a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1084557798458:android:ae517f5ee4d1ed49c15903",
+        "android_client_info": {
+          "package_name": "com.defaultcompany.baren2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1084557798458-8nhbpclkjbngi34sn1s01sg4q4hvjo7a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9gwBYLpJoFNnKcaEo_eDo1ngQmn7E8qw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1084557798458-8nhbpclkjbngi34sn1s01sg4q4hvjo7a.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

@@ -49,6 +49,11 @@ MonoBehaviour:
   - Tes2
   - SelectCharacter
   - SetCharacter
+  - RoundResult
+  - StorePrisoner
+  - SetReady
+  - SetDone
+  - StartInit
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
