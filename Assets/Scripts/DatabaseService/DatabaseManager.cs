@@ -4,16 +4,32 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 public class DatabaseManager : ScriptableObject
 {
-    public void CreateUser(DatabaseReference reference)
+    public void CreateUser(DatabaseReference reference, string username, string userId)
     {
-        User newUser = new User("Shanks", 2);
-        string json = JsonUtility.ToJson(newUser);
-        Debug.Log("json create user: " + json);
+        PlayerInfo newUser = CreateInstance<PlayerInfo>();
+        newUser.Username = username;
+        newUser.BattlePoint = 0;
 
-        reference.Child("Players").Child(/*userID*/"DD11").SetRawJsonValueAsync(json);
+        string json = JsonUtility.ToJson(newUser);
+        
+        reference.Child("Players").Child(userId).Child("PlayerInfo").SetRawJsonValueAsync(json);
+    }
+
+    public async Task<bool> UsernameExist(DatabaseReference reference, string username)
+    {
+        DataSnapshot snapshot = await reference.Child("Players").GetValueAsync();
+
+        foreach(DataSnapshot data in snapshot.Children.Reverse<DataSnapshot>())
+        {
+            if ((string)data.Child("PlayerInfo").Child("username").Value == username)
+                return true;
+        }
+
+        return false;
     }
 
     public IEnumerator GetName(DatabaseReference reference, string userID, Action<string> onCallback)
@@ -45,19 +61,20 @@ public class DatabaseManager : ScriptableObject
     }
 
      
-    public void GetUserInfo(DatabaseReference reference, string userID)
+    public async Task<PlayerInfo> GetPlayerInfo(DatabaseReference reference, string userID)
     {
-        /*StartCoroutine(GetName(reference, userID, (string name) =>
-        {
-            Debug.Log("nameinfo: "+name);
-        }));
+        PlayerInfo pInfo = CreateInstance<PlayerInfo>();
 
-        StartCoroutine(GetGold((int gold) =>
-        {
-            Debug.Log("goldinfo: " + gold);
-        }));*/
+        var playerInfoRef = reference.Child("Players").Child(userID).Child("PlayerInfo");
 
+        DataSnapshot snapshot = await playerInfoRef.GetValueAsync();
 
+        Debug.Log("Username : " + snapshot.Child("username").Value);
+        Debug.Log("BattlePoint : " + snapshot.Child("battlePoint").Value.ToString());
+
+        pInfo.Username = snapshot.Child("username").Value.ToString();
+        pInfo.BattlePoint = int.Parse(snapshot.Child("battlePoint").Value.ToString());
+        return pInfo;
     }
 
     public void getListPlayers()
@@ -106,60 +123,35 @@ public class DatabaseManager : ScriptableObject
     }
 
 
-    public IEnumerator IgetStatistic(DatabaseReference reference, string userID)
+    public async Task<Statistic> GetStatistic(DatabaseReference reference, string userID)
     {
-        Debug.Log("IEstart get statistci");
+        Statistic statistic = CreateInstance<Statistic>();
 
         var historyReference = reference.Child("Players").Child(userID).Child("History");
 
-        var DBTask = historyReference.GetValueAsync();
+        DataSnapshot snapshot = await historyReference.GetValueAsync();
 
-        int win = 0;
-        int lose = 0;
-        int draw = 0;
-
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
+        if (false)
         {
-            Debug.LogWarning(message: $"failed to register task with{DBTask.Exception}");
+            //Debug.LogWarning(message: $"failed to register task with{DBTask.Exception}");
         }
         else
         {
-            DataSnapshot snapshot = DBTask.Result;
-
             foreach (DataSnapshot childSnapshot in snapshot.Children.Reverse<DataSnapshot>())
             {        
                 int matchResult = int.Parse(childSnapshot.Child("matchResult").Value.ToString());
-                Debug.Log("matchResult: " + matchResult);
 
-                if (matchResult == 1)     
-                    win++;
-                else if(matchResult==0)
-                    draw++;
+                if (matchResult == 1)
+                    statistic.Win++;
+                else if (matchResult == 0)
+                    statistic.Draw++;
                 else if (matchResult == -1)
-                    lose++;           
+                    statistic.Lose++;           
             }
-
-            /*Debug.Log("win lose draw:" + win + lose + draw);
-            totalWinsTXT.text = win.ToString();
-            totalLosesTXT.text = lose.ToString();
-            totalDrawsTXT.text = draw.ToString();*/
-
         }
 
-
+        return statistic;
     }
-
-    public void getStatistic()
-    {
-        Debug.Log("start get statistci");
-        //StartCoroutine(IgetStatistic());
-    }
-
-
-
 
     public IEnumerator AddHistory(History history, DatabaseReference reference, string userID)
     {
@@ -190,7 +182,11 @@ public class DatabaseManager : ScriptableObject
 
     public void CreateHistory(History history, int lastIndex, DatabaseReference reference, string userID)
     {
-        history.HistoryID = "HS" + lastIndex;
+        if(lastIndex + 1 < 10)
+            history.HistoryID = "HS0" + lastIndex + 1;
+        else
+            history.HistoryID = "HS" + lastIndex + 1;
+
 
         string json = JsonUtility.ToJson(history);
 

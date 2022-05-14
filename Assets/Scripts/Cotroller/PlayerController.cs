@@ -25,11 +25,42 @@ public class PlayerController : MonoBehaviour
 
     History history;
 
+    Statistic statistic;
+
+    PlayerController instance;
+
+    public PlayerController Instance
+    {
+        get
+        {
+            if(instance == null)
+            {
+                instance = this;
+            }
+
+            return instance;
+        }
+    }
+
     // Start is called before the first frame update
     void Start()
     {
+
         //getdata player
         DontDestroyOnLoad(this.gameObject);
+    }
+
+    public Statistic Statistic
+    {
+        get
+        {
+            return this.statistic;
+        }
+
+        set
+        {
+            this.statistic = value;
+        }
     }
 
     public void AddHistoy(History history)
@@ -43,6 +74,10 @@ public class PlayerController : MonoBehaviour
 
         this.history.MatchResult = matchResult;
         this.history.BattlePoint = battlePoint;
+
+        Debug.Log("BP : " + this.history.BattlePoint);
+        Debug.Log("MR : " + this.history.MatchResult);
+        Debug.Log("MT : " + this.history.MatchType);
 
         StartCoroutine(dbManager.AddHistory(history, DbReference, UserID));
         //Store to database data history of current player

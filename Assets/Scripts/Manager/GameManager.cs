@@ -133,7 +133,6 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         myStatus = GetStatus();
     }
-
     public string GetStatus()
     {
         if (PhotonNetwork.PlayerList[0] == PhotonNetwork.LocalPlayer)
@@ -154,8 +153,6 @@ public class GameManager : MonoBehaviourPunCallbacks
 
         if (gamePage == null)
             gamePage = GameObject.Find("GameUserInterface").GetComponent<GameUserIntefacePage>();
-
-        DatabaseManager dbManager = new DatabaseManager();
 
         if (MyScore == 3)
         {

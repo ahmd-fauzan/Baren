@@ -99,8 +99,6 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
                 gameManager.LoadScene("Menu");
             }
 
-            Debug.Log("Selected : " + selectedCharacter[0].characterId);
-
             RandomCharacter();
         }
     }

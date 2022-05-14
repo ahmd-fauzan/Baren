@@ -27,7 +27,7 @@ public class History : ScriptableObject
 
         set
         {
-            this.HistoryID = value;
+            this.historyID = value;
         }
     }
     public int BattlePoint
