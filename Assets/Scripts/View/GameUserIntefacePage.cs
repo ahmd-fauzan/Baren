@@ -27,10 +27,16 @@ public class GameUserIntefacePage : MonoBehaviour
     GameObject loseMessage;
 
     [SerializeField]
+    GameObject drawMessage;
+
+    [SerializeField]
     Text winBattlePointText;
 
     [SerializeField]
     Text loseBattlePointText;
+
+    [SerializeField]
+    Text drawBattlePointText;
 
     [SerializeField]
     GameObject cardSelectionUI;
@@ -83,7 +89,13 @@ public class GameUserIntefacePage : MonoBehaviour
     public void LoseMessage(int battlePoint)
     {
         loseMessage.SetActive(true);
-        loseBattlePointText.text = "-" + battlePoint.ToString();
+        loseBattlePointText.text = battlePoint.ToString();
+    }
+
+    public void DrawMessage(int battlePOint)
+    {
+        drawMessage.SetActive(true);
+        drawBattlePointText.text = battlePOint.ToString();
     }
 
     public void HideCardSelection()

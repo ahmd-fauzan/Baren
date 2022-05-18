@@ -20,15 +20,6 @@ public class GameManager : MonoBehaviourPunCallbacks
     [SerializeField]
     private int countEnemyCharacter;
 
-    [SerializeField]
-    GameObject loadingUI;
-
-    [SerializeField]
-    Slider loadingSlider;
-
-    [SerializeField]
-    Text loadingText;
-
     #endregion
 
     //Round Score
@@ -41,6 +32,13 @@ public class GameManager : MonoBehaviourPunCallbacks
     #region CONST REWARD
     private const int WINBATTLEPOINT = 10;
     private const int LOSEBATTLEPOINT = -8;
+    private const int DRAWBATTLEPOINT = 2;
+    #endregion
+
+    #region CONST MATCHRESULT
+    private const int WINMATCH = 1;
+    private const int DRAWMATCH = 0;
+    private const int LOSEMATCH = -1;
     #endregion
 
     #region CONST ROUNDRESULT
@@ -55,19 +53,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         get; set;
     }
 
-    private DatabaseReference dbReference;
-
-    public DatabaseReference DbReference
-    {
-        get
-        {
-            if(dbReference == null)
-                dbReference = FirebaseDatabase.DefaultInstance.RootReference;
-
-            return this.dbReference;
-        }
-    }
-
     public List<Character> CharacterSelected {
         get
         {
@@ -76,30 +61,6 @@ public class GameManager : MonoBehaviourPunCallbacks
         set
         {
             characterSelected = value;
-        }
-    }
-
-    public int MyScore
-    {
-        get
-        {
-            return myScore;
-        }
-        set
-        {
-            myScore = value;
-        }
-    }
-
-    public int EnemyScore
-    {
-        get
-        {
-            return enemyScore;
-        }
-        set
-        {
-            enemyScore = value;
         }
     }
 
@@ -127,9 +88,18 @@ public class GameManager : MonoBehaviourPunCallbacks
         }
     }
 
+    private List<int> listRoundResult;
+    
+    private static GameManager instance;
+
     private void Awake()
     {
         DontDestroyOnLoad(this.gameObject);
+
+        if (instance == null)
+            instance = this;
+        else
+            Destroy(this.gameObject);
 
         myStatus = GetStatus();
     }
@@ -147,24 +117,56 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
 
     #region Round
-    public void CalculateRoundResult()
+    public void CalculateMatchResult()
+    {
+        
+
+        int winScore = 0;
+        int loseScore = 0;
+
+        foreach (int score in listRoundResult)
+        {
+            if (score == WINROUND)
+                winScore++;
+            else if (score == LOSEROUND)
+                loseScore++;
+        }
+
+        if (winScore == loseScore)
+        {
+            MatchResult(DRAWMATCH);
+        }
+        else if (winScore > loseScore)
+        {
+            MatchResult(WINMATCH);
+        }
+        else
+        {
+            MatchResult(LOSEMATCH);
+        }
+    }
+
+    public void MatchResult(int matchResult)
     {
         PlayerController playerController = GameObject.Find("PlayerController").GetComponent<PlayerController>();
 
         if (gamePage == null)
             gamePage = GameObject.Find("GameUserInterface").GetComponent<GameUserIntefacePage>();
 
-        if (MyScore == 3)
+        switch (matchResult)
         {
-            playerController.UpdateHistory(1, WINBATTLEPOINT);
-
-            gamePage.WinMessage(WINBATTLEPOINT);
-        }
-
-        else if (EnemyScore == 3)
-        {
-            playerController.UpdateHistory(1, -LOSEBATTLEPOINT);
-            gamePage.LoseMessage(-LOSEBATTLEPOINT);
+            case WINMATCH:
+                playerController.UpdateHistory(1, WINBATTLEPOINT);
+                gamePage.WinMessage(WINBATTLEPOINT);
+                break;
+            case DRAWMATCH:
+                playerController.UpdateHistory(0, DRAWBATTLEPOINT);
+                gamePage.DrawMessage(DRAWBATTLEPOINT);
+                break;
+            case LOSEMATCH:
+                playerController.UpdateHistory(-1, LOSEBATTLEPOINT);
+                gamePage.LoseMessage(LOSEBATTLEPOINT);
+                break;
         }
     }
 
@@ -173,24 +175,20 @@ public class GameManager : MonoBehaviourPunCallbacks
         if(gamePage == null)
             gamePage = GameObject.Find("GameUserInterface").GetComponent<GameUserIntefacePage>();
 
-        switch (roundResult)
-        {
-            case LOSEROUND:
-                EnemyScore++;
-                break;
+        if (listRoundResult == null)
+            listRoundResult = new List<int>();
 
-            case WINROUND:
-                MyScore++;
-                break;
-        }
-        
+        listRoundResult.Add(roundResult);
+
         gamePage.UpdateScore(roundResult);
 
     }
 
     public bool IsGameFinished()
     {
-        if (MyScore == 3 || EnemyScore == 3 || (MyScore + EnemyScore == 5))
+        if (listRoundResult == null)
+            return false;
+        if (listRoundResult.Count >= 5)
             return true;
         return false;
     }
@@ -198,7 +196,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     #endregion
 
     #region Load Scene
-    public IEnumerator LoadScene(string sceneName)
+    public IEnumerator LoadScene(string sceneName, GameObject loadingUI, Text loadingText, Slider loadingSlider)
     {
         loadingUI.SetActive(true);
 
@@ -209,7 +207,8 @@ public class GameManager : MonoBehaviourPunCallbacks
         {
             if(titik <= 3)
             {
-                loadingText.text = text;
+                if(loadingText != null)
+                    loadingText.text = text;
                 text = text + ".";
                 titik++;
             }
@@ -218,9 +217,9 @@ public class GameManager : MonoBehaviourPunCallbacks
                 text = "Loading.";
             }
 
-            loadingSlider.value = PhotonNetwork.LevelLoadingProgress;
+            if(loadingSlider != null)
+                loadingSlider.value = PhotonNetwork.LevelLoadingProgress;
 
-            Debug.Log("Loading Level : " + (PhotonNetwork.LevelLoadingProgress * 100) + "%");
             yield return new WaitForEndOfFrame();
         }
     }

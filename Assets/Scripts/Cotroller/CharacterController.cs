@@ -14,8 +14,6 @@ public class CharacterController : MonoBehaviour
     private void Awake()
     {
         characterList = Resources.LoadAll<Character>("CharacterData");
-
-        DontDestroyOnLoad(this.gameObject);
     }
 
     public Character[] GetCharacterList()

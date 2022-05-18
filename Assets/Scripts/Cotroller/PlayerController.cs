@@ -2,25 +2,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Firebase.Database;
+using Firebase.Extensions;
 
 public class PlayerController : MonoBehaviour
 {
     public string UserID
     {
         get; set;
-    }
-
-    private DatabaseReference dbReference;
-
-    public DatabaseReference DbReference
-    {
-        get
-        {
-            if (dbReference == null)
-                dbReference = FirebaseDatabase.DefaultInstance.RootReference;
-
-            return this.dbReference;
-        }
     }
 
     History history;
@@ -70,7 +58,7 @@ public class PlayerController : MonoBehaviour
 
     public void UpdateHistory(int matchResult, int battlePoint)
     {
-        DatabaseManager dbManager = new DatabaseManager();
+        DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
 
         this.history.MatchResult = matchResult;
         this.history.BattlePoint = battlePoint;
@@ -79,12 +67,31 @@ public class PlayerController : MonoBehaviour
         Debug.Log("MR : " + this.history.MatchResult);
         Debug.Log("MT : " + this.history.MatchType);
 
-        StartCoroutine(dbManager.AddHistory(history, DbReference, UserID));
-        //Store to database data history of current player
-    }
+        dbManager.AddHistory(history, UserID).ContinueWithOnMainThread(task =>
+        {
+            if (task.IsCompleted)
+            {
+                dbManager.GetPlayerInfo(UserID).ContinueWithOnMainThread(task =>
+                {
+                    if (task.IsCompleted)
+                    {
+                        PlayerInfo pInfo = task.Result;
 
-    public void StoreHistory()
-    {
-        
+                        pInfo.BattlePoint += battlePoint;
+
+                        if (pInfo.BattlePoint < 0)
+                            pInfo.BattlePoint = 0;
+
+                        dbManager.UpdatePlayerInfo(UserID, pInfo).ContinueWithOnMainThread(task =>
+                        {
+                            if (task.IsCompleted)
+                            {
+                                Debug.Log("Store Completed");
+                            }
+                        });
+                    }
+                });
+            }
+        });
     }
 }

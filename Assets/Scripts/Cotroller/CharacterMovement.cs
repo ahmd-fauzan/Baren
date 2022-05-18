@@ -156,12 +156,14 @@ public class CharacterMovement : MonoBehaviour
                     
                     moving = false;
 
-                    /*
                     if(this.value == -1)
                     {
                         rigid.constraints = RigidbodyConstraints.FreezeAll;
-                    }*/
+                    }
                 }
+
+                if (!view.IsMine)
+                    return;
 
                 if (currStamina <= 0)
                 {
@@ -171,6 +173,7 @@ public class CharacterMovement : MonoBehaviour
                 }
                 else
                     agent.isStopped = false;
+                
             }
         }
         
@@ -212,18 +215,23 @@ public class CharacterMovement : MonoBehaviour
                 }
             }
 
-            staminaBar.value = this.currStamina;
+            if(staminaBar != null)
+                staminaBar.value = this.currStamina;
         }
     }
 
     public void Move(Vector3 location, int touchCount)
     {
-        if(currStamina > 0)
+        if (agent == null)
+            agent = GetComponent<NavMeshAgent>();
+
+        if(1 > 0)
         {
             //agent.enabled = false;
 
             moving = true;
 
+            
             if (touchCount == 2)
                 UpdateSpeed(character.runSpeed);
             else
@@ -284,7 +292,7 @@ public class CharacterMovement : MonoBehaviour
                 {
                     if (this.value < character.Value)
                     {
-                        Move(roundManager.GetPrisoner(), 2);
+                        roundManager.view.RPC("MoveCharacterRPC", RpcTarget.All, this.character.characterId, gameManager.GetStatus(), 1, roundManager.GetPrisoner());
                         this.value = -1;
                         StopOutline();
                     }

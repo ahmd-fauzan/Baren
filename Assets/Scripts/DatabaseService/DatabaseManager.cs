@@ -1,4 +1,5 @@
 using Firebase.Database;
+using Firebase.Extensions;
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,7 +9,23 @@ using System.Threading.Tasks;
 
 public class DatabaseManager : ScriptableObject
 {
-    public void CreateUser(DatabaseReference reference, string username, string userId)
+    DatabaseManager instance;
+
+    DatabaseReference reference;
+
+    public DatabaseManager GetInstance()
+    {
+        if (instance == null)
+        {
+            instance = this;
+
+            reference = FirebaseDatabase.DefaultInstance.RootReference;
+        }
+
+        return instance;
+    }
+
+    public void CreateUser(string username, string userId)
     {
         PlayerInfo newUser = CreateInstance<PlayerInfo>();
         newUser.Username = username;
@@ -19,7 +36,28 @@ public class DatabaseManager : ScriptableObject
         reference.Child("Players").Child(userId).Child("PlayerInfo").SetRawJsonValueAsync(json);
     }
 
-    public async Task<bool> UsernameExist(DatabaseReference reference, string username)
+    public async Task<bool> UpdatePlayerInfo(string userId, PlayerInfo pInfo)
+    {
+        string json = JsonUtility.ToJson(pInfo);
+        
+         await reference.Child("Players").Child(userId).Child("PlayerInfo").SetRawJsonValueAsync(json);
+
+        return true;
+    }
+
+    public async Task<bool> UserDataExist(string userId)
+    {
+        DataSnapshot snapshot = await reference.Child("Players").Child(userId).GetValueAsync();
+
+        if(snapshot.Value == null)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task<bool> UsernameExist(string username)
     {
         DataSnapshot snapshot = await reference.Child("Players").GetValueAsync();
 
@@ -31,37 +69,8 @@ public class DatabaseManager : ScriptableObject
 
         return false;
     }
-
-    public IEnumerator GetName(DatabaseReference reference, string userID, Action<string> onCallback)
-    {
-
-        var userNameData = reference.Child("Players").Child(userID).Child("name").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => userNameData.IsCompleted);
-
-        if (userNameData != null)
-        {
-            DataSnapshot snapshot = userNameData.Result;
-            onCallback.Invoke(snapshot.Value.ToString());
-        }
-
-    }
-
-    public IEnumerator GetGold(DatabaseReference reference, string userID, Action<int> onCallback)
-    {
-        var userGoldData = reference.Child("Players").Child(userID).Child("gold").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => userGoldData.IsCompleted);
-
-        if (userGoldData != null)
-        {
-            DataSnapshot snapshot = userGoldData.Result;
-            onCallback.Invoke(int.Parse(snapshot.Value.ToString()));
-        }
-    }
-
      
-    public async Task<PlayerInfo> GetPlayerInfo(DatabaseReference reference, string userID)
+    public async Task<PlayerInfo> GetPlayerInfo(string userID)
     {
         PlayerInfo pInfo = CreateInstance<PlayerInfo>();
 
@@ -69,20 +78,13 @@ public class DatabaseManager : ScriptableObject
 
         DataSnapshot snapshot = await playerInfoRef.GetValueAsync();
 
-        Debug.Log("Username : " + snapshot.Child("username").Value);
-        Debug.Log("BattlePoint : " + snapshot.Child("battlePoint").Value.ToString());
-
         pInfo.Username = snapshot.Child("username").Value.ToString();
         pInfo.BattlePoint = int.Parse(snapshot.Child("battlePoint").Value.ToString());
+
         return pInfo;
     }
 
-    public void getListPlayers()
-    {
-        //StartCoroutine(LoadPlayers());
-    }
-
-    public IEnumerator LoadPlayers(DatabaseReference reference, string userID)
+    public IEnumerator LoadPlayers(string userID)
     {
         Debug.Log("IEstart get statistci");
 
@@ -123,7 +125,7 @@ public class DatabaseManager : ScriptableObject
     }
 
 
-    public async Task<Statistic> GetStatistic(DatabaseReference reference, string userID)
+    public async Task<Statistic> GetStatistic(string userID)
     {
         Statistic statistic = CreateInstance<Statistic>();
 
@@ -153,104 +155,72 @@ public class DatabaseManager : ScriptableObject
         return statistic;
     }
 
-    public IEnumerator AddHistory(History history, DatabaseReference reference, string userID)
+    public async Task<List<PlayerInfo>> GetLeaderboard()
     {
-        var historyReference = reference.Child("Players").Child(userID).Child("History");
+        List<PlayerInfo> pInfoList = new List<PlayerInfo>();
 
-        var DBTask = historyReference.GetValueAsync();
+        DataSnapshot snapshot = await reference.Child("Players").GetValueAsync();
 
-        int lastindex = 0;
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
+        foreach (DataSnapshot data in snapshot.Children.Reverse<DataSnapshot>())
         {
-            Debug.LogWarning(message: $"failed to register task with{DBTask.Exception}");
-        }
-        else
-        {
-            DataSnapshot snapshot = DBTask.Result;
+            PlayerInfo pInfo = CreateInstance<PlayerInfo>();
 
-            int Historylength = snapshot.Children.Reverse<DataSnapshot>().Count();
-        
-            lastindex = Historylength - 1;
-            Debug.Log("last index in load last index: " + lastindex );
-            CreateHistory(history, lastindex, reference, userID);
+            pInfo.Username = data.Child("PlayerInfo").Child("username").Value.ToString();
+            pInfo.BattlePoint = int.Parse(data.Child("PlayerInfo").Child("battlePoint").Value.ToString());
 
+            if (pInfo != null)
+                pInfoList.Add(pInfo);
         }
+
+        return pInfoList;
     }
 
-    public void CreateHistory(History history, int lastIndex, DatabaseReference reference, string userID)
+    public async Task<bool> AddHistory(History history,  string userID)
     {
-        if(lastIndex + 1 < 10)
+        await GetLastIndex().ContinueWithOnMainThread(task =>
+        {
+            if (task.IsCompleted)
+            {
+                long index = task.Result;
+                
+                CreateHistory(history, index, userID).ContinueWithOnMainThread(task =>
+                {
+                    if (task.IsCompleted)
+                    {
+                        Debug.Log("Success");
+                    }
+                });
+            }
+        });
+
+        return true;
+    }
+
+    private async Task<long> GetLastIndex()
+    {
+        DataSnapshot snapshot = await reference.Child("Players").Child("History").GetValueAsync();
+
+        if(snapshot != null)
+        {
+            long lenght = snapshot.ChildrenCount;
+
+            return lenght;
+        }
+
+        return -1;
+    }
+
+    public async Task<bool> CreateHistory(History history, long lastIndex, string userID)
+    {
+        if (lastIndex < 10)
             history.HistoryID = "HS0" + lastIndex + 1;
         else
             history.HistoryID = "HS" + lastIndex + 1;
 
-
         string json = JsonUtility.ToJson(history);
 
-        reference.Child("Players").Child(userID).Child("History").Child((lastIndex+1).ToString()).SetRawJsonValueAsync(json);
+        await reference.Child("Players").Child(userID).Child("History").Child((lastIndex).ToString()).SetRawJsonValueAsync(json);
 
-        Debug.Log("Create History");
+        return true;
     }
-
-
-    /*public void setBattlePointAndUsernameTXT()
-    {
-        StartCoroutine(GetBattlePoint((int battlePoint) =>
-        {
-            Debug.Log("battlePointINfo: " + battlePoint);
-
-            //settext batltepoint
-        }));
-
-
-        StartCoroutine(GetUsername((string userName) =>
-        {
-            Debug.Log("userName Infor: " + userName);
-
-            //settext batltepoint
-        }));
-
-    }
-
-    public IEnumerator GetBattlePoint(Action<int> onCallback)
-    {
-        var battlePointData = dbReference.Child("Players").Child(userID).Child("PlayerInfo").Child("battlePoint").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => battlePointData.IsCompleted);
-
-        if (battlePointData != null)
-        {
-            DataSnapshot snapshot = battlePointData.Result;
-            onCallback.Invoke(int.Parse(snapshot.Value.ToString()));
-        }
-
-    }
-    public IEnumerator GetUsername(Action<string> onCallback)
-    {
-        var userNameData = dbReference.Child("Players").Child(userID).Child("PlayerInfo").Child("username").GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => userNameData.IsCompleted);
-
-        if (userNameData != null)
-        {
-            DataSnapshot snapshot = userNameData.Result;
-            onCallback.Invoke(snapshot.Value.ToString());
-        }
-
-    }
-
-    public void setUserIDTXT()
-    {
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }*/
-
-   
 }

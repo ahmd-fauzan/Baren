@@ -25,6 +25,15 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
     [SerializeField]
     Text costPointText;
 
+    [SerializeField]
+    GameObject loadingUI;
+
+    [SerializeField]
+    Slider loadingSlider;
+
+    [SerializeField]
+    Text loadingText;
+
     List<GameObject> cardAvailable;
 
     List<Character> selectedCharacter;
@@ -33,10 +42,8 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
 
     private int costPoint;
 
-    private bool isDone;
-
     [SerializeField]
-    int countCharacter;
+    int countEnemyCharacter;
 
     private Color myImageColor = new Color32(154, 154, 154, 140);
     private Color enemyImageColor = new Color32(48, 48, 48, 140);
@@ -64,8 +71,6 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
 
         costPoint = 100;
 
-        isDone = false;
-
         if (PhotonNetwork.PlayerList[0] == PhotonNetwork.LocalPlayer)
         {
             SetOtherPlayerName(PhotonNetwork.PlayerList[1].NickName);
@@ -76,7 +81,11 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
             SetOtherPlayerName(PhotonNetwork.PlayerList[0].NickName);
             myStatus = "Player2";
         }
-        
+
+
+        if (selectedCharacter == null)
+            selectedCharacter = new List<Character>();
+
         SpawnDraftCharacter();
         StartTimer();
     }
@@ -91,29 +100,25 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
 
         if (timerIncrementValue >= timer)
         {
-            //Timer Completed
             startTimer = false;
 
             if (IsCancelMatch())
             {
-                gameManager.LoadScene("Menu");
+                StartCoroutine(gameManager.LoadScene("Menu", loadingUI, loadingText, loadingSlider));
+                Debug.Log("Back To Menu");
+                return;
             }
 
-            RandomCharacter();
+            if(selectedCharacter.Count < 3)
+                RandomCharacter();
+            else
+                draftFinishedEvent();
         }
     }
 
-    void OnDraftFinished()
+    private void OnDraftFinished()
     {
-        if (PhotonNetwork.IsMasterClient)
-        {
-            if (isDone)
-            {
-                StartCoroutine(gameManager.LoadScene("Match"));
-            }
-        }
-        else
-            view.RPC("SetDone", RpcTarget.Others);
+        StartCoroutine(gameManager.LoadScene("Match", loadingUI, loadingText, loadingSlider));
     }
 
     public void SetOtherPlayerName(string playerName)
@@ -128,12 +133,9 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
 
     private bool IsCancelMatch()
     {
-        if(selectedCharacter != null)
-        {
-            if (selectedCharacter.Count < 3 && countCharacter < 3)
-                return true;
-        }
-        
+        if (selectedCharacter.Count < 3 && countEnemyCharacter < 3)
+            return true;
+
         return false;
     }
 
@@ -164,7 +166,7 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
         for (int i = 0; i < list.Length; i++)
         {
 
-            GameObject go = SpawnCard(list[i], characterAvailableContent, false);
+            GameObject go = SpawnManager.SpawnCard(list[i], characterAvailableContent, false);
             AddEvent(go, list[i]);
 
             cardAvailable.Add(go);
@@ -244,17 +246,14 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
         if (!isAvailableSelect(character))
             return;
         
-        SpawnCard(character, myPoint, false);
+        SpawnManager.SpawnCard(character, myPoint, false);
 
         view.RPC("SelectCharacter", RpcTarget.Others, character.characterId, myStatus);
-
-        if (selectedCharacter == null)
-            selectedCharacter = new List<Character>();
 
         selectedCharacter.Add(character);
 
         gameManager.CharacterSelected = selectedCharacter;
-        gameManager.CountEnemyCharacter = countCharacter;
+        gameManager.CountEnemyCharacter = countEnemyCharacter;
 
         UpdateCostPoint(character.cost);
     }
@@ -343,27 +342,12 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
         return false;
     }
 
-    public GameObject SpawnCard(Character character, Transform spawn, bool sliderActive)
-    {
-        GameObject go = Instantiate(character.characterImage, spawn.position, spawn.rotation);
-        //go.GetComponent<Image>().sprite = sprites[i]; //Set the Sprite of the Image Component on the new GameObject
-        RectTransform rect = go.GetComponent<RectTransform>();
-
-        rect.SetParent(spawn.transform); //Assign the newly created Image GameObject as a Child of the Parent Panel
-        go.GetComponent<Transform>().localScale = Vector3.one;
-
-        go.GetComponent<Transform>().GetChild(2).gameObject.SetActive(sliderActive);
-
-        return go;
-    }
-
-
     #region RPC
     [PunRPC]
     public void SelectCharacter(string characterId, string playerType)
     {
         CharacterController controller = GameObject.Find("CharacterController").GetComponent<CharacterController>();
-        SpawnCard(controller.GetCharacterById(characterId), enemyPoint, false);
+        SpawnManager.SpawnCard(controller.GetCharacterById(characterId), enemyPoint, false);
         Transform parent = GameObject.Find("CharacterAvailableContent").GetComponent<Transform>();
 
         for (int i = 0; i < parent.childCount; i++)
@@ -376,14 +360,7 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
             }
         }
 
-        countCharacter++;
-    }
-
-    [PunRPC]
-    public void SetDone()
-    {
-        isDone = !isDone;
-        draftFinishedEvent();
+        countEnemyCharacter++;
     }
 
     #endregion

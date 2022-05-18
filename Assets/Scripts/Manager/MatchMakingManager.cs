@@ -10,9 +10,6 @@ using Google;
 
 public class MatchMakingManager : MonoBehaviourPunCallbacks
 {
-    [SerializeField]
-    private GameObject loadingScreen;
-
     private string gameVersion = "0.0.1";
     [SerializeField] Transform roomListContent;
 
@@ -33,22 +30,16 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     [SerializeField]
     Button startButton;
 
-    public delegate void LoadMainMenuDelegate();
-    public event LoadMainMenuDelegate LoadMainMenuEvent;
-
     // Start is called before the first frame update
     void Start()
     {
-        Debug.Log("Run");
-
-        loadingScreen.SetActive(true);
-
         startButton.GetComponent<Button>().interactable = false;
 
         roomPage.SetActive(false);
+    }
 
-        LoadMainMenuEvent += OnLoadMainMenu;
-
+    public void InitializeNetwork(string username)
+    {
         if (PhotonNetwork.IsConnected)
         {
             if (PhotonNetwork.CurrentRoom != null)
@@ -56,28 +47,11 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        PlayerController pController = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
-
-        DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>();
-
-        dbManager.GetPlayerInfo(pController.DbReference, pController.UserID).ContinueWithOnMainThread(task =>
-        {
-            if (task.IsCompleted)
-            {
-                PlayerInfo pInfo = task.Result;
-
-                PhotonNetwork.AutomaticallySyncScene = true;
-                PhotonNetwork.NickName = pInfo.Username;
-                PhotonNetwork.GameVersion = gameVersion;
-                PhotonNetwork.ConnectUsingSettings();
-                Debug.Log("Connecting");
-            }
-        });
-    }
-
-    private void OnLoadMainMenu()
-    {
-        loadingScreen.SetActive(false);
+        PhotonNetwork.AutomaticallySyncScene = true;
+        PhotonNetwork.NickName = username;
+        PhotonNetwork.GameVersion = gameVersion;
+        PhotonNetwork.ConnectUsingSettings();
+        Debug.Log("Connecting");
     }
 
     public void LoadScene()
@@ -110,13 +84,6 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     public static void CreateRoom(string roomName, int status)
     {
-        PlayerController playerController = GameObject.Find("PlayerController").GetComponent<PlayerController>();
-
-        History history = (ScriptableObject.CreateInstance<History> ());
-        history.MatchType = status;
-
-        playerController.AddHistoy(history);
-
         RoomOptions options = new RoomOptions();
         options.MaxPlayers = 2;
         options.IsOpen = true;
@@ -124,14 +91,11 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         Debug.Log("Status : " + status);
         if (status == 0)
         {
-            Debug.Log("Visible");
             options.IsVisible = false;
         }
         else
         {
-            Debug.Log("Invisible");
             options.IsVisible = true;
-
         }
 
         PhotonNetwork.CreateRoom(roomName, options, TypedLobby.Default);
@@ -140,7 +104,10 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     public override void OnJoinedLobby()
     {
         Debug.Log("Joined to Lobby");
-        LoadMainMenuEvent();
+
+        MainMenuManager menuManager = GameObject.Find("MainMenuManager").GetComponent<MainMenuManager>().Instance;
+        menuManager.TaskNetwork = true;
+        menuManager.HandleTask();
     }
     public void JoinRoom(string roomName)
     {
@@ -157,7 +124,7 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        Debug.Log("Left Room");
+        roomPage.SetActive(false);
     }
     public override void OnCreatedRoom()
     {
@@ -167,6 +134,20 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     public override void OnJoinedRoom()
     {
+        PlayerController playerController = GameObject.Find("PlayerController").GetComponent<PlayerController>();
+        History history = (ScriptableObject.CreateInstance<History>());
+
+        if (PhotonNetwork.CurrentRoom.IsVisible)
+        {
+            history.MatchType = 1;
+        }
+        else
+        {
+            history.MatchType = 0;
+        }
+
+        playerController.AddHistoy(history);
+        
         Debug.Log("Joined to Room");
         roomPage.SetActive(true);
         roomCode.text = "Room Code" + "\n" + PhotonNetwork.CurrentRoom.Name;
@@ -282,7 +263,6 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     public void LeaveLobby()
     {
-        roomPage.SetActive(false);
         PhotonNetwork.LeaveRoom();
     }
 

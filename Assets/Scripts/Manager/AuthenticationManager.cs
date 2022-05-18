@@ -10,9 +10,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
-public class GoogleSignInDemo : MonoBehaviour
+public class AuthenticationManager : MonoBehaviour
 {
-    public Text infoText;
     public string webClientId = "<your client id here>";
 
     private FirebaseAuth auth;
@@ -34,6 +33,9 @@ public class GoogleSignInDemo : MonoBehaviour
     [SerializeField]
     GameObject usernameInput;
 
+    [SerializeField]
+    GameObject buttonLogin;
+
     private void Awake()
     {
         configuration = new GoogleSignInConfiguration { WebClientId = webClientId, RequestEmail = true, RequestIdToken = true };
@@ -41,7 +43,7 @@ public class GoogleSignInDemo : MonoBehaviour
 
         usernameInput.SetActive(false);
 
-        
+        buttonLogin.SetActive(true);
     }
 
     public void StartGame()
@@ -49,8 +51,8 @@ public class GoogleSignInDemo : MonoBehaviour
 
         PlayerController controller = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
 
-        DatabaseManager manager = ScriptableObject.CreateInstance<DatabaseManager>();
-        manager.UsernameExist(controller.DbReference, usernameIF.text).ContinueWithOnMainThread(task =>
+        DatabaseManager manager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
+        manager.UsernameExist(usernameIF.text).ContinueWithOnMainThread(task =>
         {
             if (task.IsCompleted)
             {
@@ -75,11 +77,11 @@ public class GoogleSignInDemo : MonoBehaviour
                     OnSignInSilently();
                 }
                 else
-                    AddToInformation("Could not resolve all Firebase dependencies: " + task.Result.ToString());
+                    Debug.Log("Could not resolve all Firebase dependencies: " + task.Result.ToString());
             }
             else
             {
-                AddToInformation("Dependency check was not completed. Error : " + task.Exception.Message);
+                Debug.Log("Dependency check was not completed. Error : " + task.Exception.Message);
             }
         });
     }
@@ -104,7 +106,10 @@ public class GoogleSignInDemo : MonoBehaviour
                     lenght++;
                 }
                if(lenght == 0)
+                {
+                    buttonLogin.SetActive(false);
                     usernameInput.SetActive(true);
+                }
                 else
                     SignInWithGoogleOnFirebase(tokenId, true);
             }
@@ -135,7 +140,7 @@ public class GoogleSignInDemo : MonoBehaviour
         GoogleSignIn.Configuration = configuration;
         GoogleSignIn.Configuration.UseGameSignIn = false;
         GoogleSignIn.Configuration.RequestIdToken = true;
-        AddToInformation("Calling SignIn");
+        Debug.Log("Calling SignIn");
 
         signType = 1;
 
@@ -144,20 +149,18 @@ public class GoogleSignInDemo : MonoBehaviour
 
     private void OnSignOut()
     {
-        AddToInformation("Calling SignOut");
-        infoText.text = "";
+        Debug.Log("Calling SignOut");
         GoogleSignIn.DefaultInstance.SignOut();
     }
 
     public void OnDisconnect()
     {
-        AddToInformation("Calling Disconnect");
+        Debug.Log("Calling Disconnect");
         GoogleSignIn.DefaultInstance.Disconnect();
     }
 
     internal void OnAuthenticationFinished(Task<GoogleSignInUser> task)
     {
-        AddToInformation("Signing In...");
         if (task.IsFaulted)
         {
             using (IEnumerator<Exception> enumerator = task.Exception.InnerExceptions.GetEnumerator())
@@ -165,30 +168,23 @@ public class GoogleSignInDemo : MonoBehaviour
                 if (enumerator.MoveNext())
                 {
                     GoogleSignIn.SignInException error = (GoogleSignIn.SignInException)enumerator.Current;
-                    AddToInformation("Got Error: " + error.Status + " " + error.Message);
+                    Debug.Log("Got Error: " + error.Status + " " + error.Message);
 
                     if (signType == 2)
                         OnSignOut();
                 }
                 else
                 {
-                    AddToInformation("Got Unexpected Exception?!?" + task.Exception);
+                    Debug.Log("Got Unexpected Exception?!?" + task.Exception);
                 }
             }
         }
         else if (task.IsCanceled)
         {
-            AddToInformation("Canceled");
+            Debug.Log("Task Cancelled");
         }
         else
         {
-            AddToInformation("SignIn Success");
-
-            AddToInformation("Welcome: " + task.Result.DisplayName + "!");
-            AddToInformation("Email = " + task.Result.Email);
-            AddToInformation("Google ID Token = " + task.Result.IdToken);
-            AddToInformation("Email = " + task.Result.Email);
-
             tokenId = task.Result.IdToken;
 
             if (signType == 2)
@@ -207,25 +203,38 @@ public class GoogleSignInDemo : MonoBehaviour
             AggregateException ex = task.Exception;
             if (ex != null)
             {
-                if (ex.InnerExceptions[0] is FirebaseException inner && (inner.ErrorCode != 0))
-                    AddToInformation("\nError code = " + inner.ErrorCode + " Message = " + inner.Message);
+                if (ex.InnerExceptions[0] is FirebaseException inner && (inner.ErrorCode != 0)) { }
             }
             else
             {
-                AddToInformation("Sign In Successful.");
                 PlayerController controller = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
                 controller.UserID = task.Result.UserId;
+                
+                DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
 
                 if (!isLogin)
                 {
-                    
-
-                    DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>();
-
-                    dbManager.CreateUser(controller.DbReference, usernameIF.text, task.Result.UserId);
+                    dbManager.CreateUser(usernameIF.text, task.Result.UserId);
+                    SceneManager.LoadScene("Menu");
+                    return;
                 }
 
-                SceneManager.LoadScene("Menu");
+                dbManager.UserDataExist(task.Result.UserId).ContinueWithOnMainThread(task =>
+                {
+                    if (task.IsCompleted)
+                    {
+                        if (task.Result)
+                        {
+                            SceneManager.LoadScene("Menu");
+                        }
+                        else
+                        {
+                            usernameInput.SetActive(true);
+                            buttonLogin.SetActive(false);
+                        }
+                    }
+                });
+               
             }
         });
     }
@@ -235,7 +244,6 @@ public class GoogleSignInDemo : MonoBehaviour
         GoogleSignIn.Configuration = configuration;
         GoogleSignIn.Configuration.UseGameSignIn = false;
         GoogleSignIn.Configuration.RequestIdToken = true;
-        AddToInformation("Calling SignIn Silently");
 
         signType = 2;
 
@@ -248,43 +256,6 @@ public class GoogleSignInDemo : MonoBehaviour
         GoogleSignIn.Configuration.UseGameSignIn = true;
         GoogleSignIn.Configuration.RequestIdToken = false;
 
-        AddToInformation("Calling Games SignIn");
-
         GoogleSignIn.DefaultInstance.SignIn().ContinueWith(OnAuthenticationFinished);
-    }
-
-    private void AddToInformation(string str) { infoText.text += "\n" + str; }
-
-    // Handle initialization of the necessary firebase modules:
-    void InitializeFirebase()
-    {
-        Debug.Log("Setting up Firebase Auth");
-        auth = Firebase.Auth.FirebaseAuth.DefaultInstance;
-        auth.StateChanged += AuthStateChanged;
-        AuthStateChanged(this, null);
-    }
-
-    // Track state changes of the auth object.
-    void AuthStateChanged(object sender, System.EventArgs eventArgs)
-    {
-        if (auth.CurrentUser != user)
-        {
-            bool signedIn = user != auth.CurrentUser && auth.CurrentUser != null;
-            if (!signedIn && user != null)
-            {
-                Debug.Log("Signed out " + user.UserId);
-            }
-            user = auth.CurrentUser;
-            if (signedIn)
-            {
-                Debug.Log("Signed in " + user.UserId);
-            }
-        }
-    }
-
-    void OnDestroy()
-    {
-        auth.StateChanged -= AuthStateChanged;
-        auth = null;
     }
 }

@@ -28,9 +28,9 @@ public class MatchMakingPage : MonoBehaviour
     public void CreateRoom()
     {
         PlayerController pController = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
-        DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>();
+        DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
 
-        dbManager.GetPlayerInfo(pController.DbReference, pController.UserID).ContinueWithOnMainThread(task =>
+        dbManager.GetPlayerInfo(pController.UserID).ContinueWithOnMainThread(task =>
         {
             if (task.IsCompleted)
             {
