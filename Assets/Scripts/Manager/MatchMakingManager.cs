@@ -28,6 +28,9 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     private MatchMakingManager instance;
 
     [SerializeField]
+    private string currentRoom;
+
+    [SerializeField]
     Button startButton;
 
     // Start is called before the first frame update
@@ -43,8 +46,19 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsConnected)
         {
             if (PhotonNetwork.CurrentRoom != null)
+            {
                 PhotonNetwork.LeaveRoom();
-            return;
+                return;
+            }
+
+            if(PhotonNetwork.CurrentLobby != null)
+            {
+                MainMenuManager menuManager = GameObject.Find("MainMenuManager").GetComponent<MainMenuManager>().Instance;
+                menuManager.TaskNetwork = true;
+                menuManager.HandleTask();
+            }
+
+                
         }
 
         PhotonNetwork.AutomaticallySyncScene = true;
@@ -82,6 +96,48 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         return instance;
     }
 
+    public override void OnDisconnected(DisconnectCause cause)
+    {
+        Debug.Log("Player disconnected : " + cause.ToString());
+        if (cause.ToString() != "DisconnectByClientLogic")
+        {
+            MatchMakingPage page = GameObject.Find("MenuCanvas").GetComponent<MatchMakingPage>();
+
+            page.ActiveReconnectSreen(true);
+
+            PhotonNetwork.Reconnect();
+        }
+    }
+
+    public override void OnConnected()
+    {
+        Debug.Log("Connected To Server");
+    }
+
+    private IEnumerator MainReconnect()
+    {
+        while (PhotonNetwork.NetworkingClient.LoadBalancingPeer.PeerState != ExitGames.Client.Photon.PeerStateValue.Disconnected)
+        {
+            Debug.Log("Waiting for client to be fully disconnected..", this);
+
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        Debug.Log("Client is disconnected!", this);
+
+        if (!PhotonNetwork.ReconnectAndRejoin())
+        {
+            if (PhotonNetwork.Reconnect())
+            {
+                Debug.Log("Successful reconnected!", this);
+            }
+        }
+        else
+        {
+            Debug.Log("Successful reconnected and joined!", this);
+        }
+    }
+
     public static void CreateRoom(string roomName, int status)
     {
         RoomOptions options = new RoomOptions();
@@ -108,6 +164,9 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         MainMenuManager menuManager = GameObject.Find("MainMenuManager").GetComponent<MainMenuManager>().Instance;
         menuManager.TaskNetwork = true;
         menuManager.HandleTask();
+
+        MatchMakingPage page = GameObject.Find("MenuCanvas").GetComponent<MatchMakingPage>();
+        page.ActiveReconnectSreen(false);
     }
     public void JoinRoom(string roomName)
     {
@@ -134,7 +193,7 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     public override void OnJoinedRoom()
     {
-        PlayerController playerController = GameObject.Find("PlayerController").GetComponent<PlayerController>();
+        PlayerController playerController = PlayerController.GetInstance();
         History history = (ScriptableObject.CreateInstance<History>());
 
         if (PhotonNetwork.CurrentRoom.IsVisible)
@@ -148,17 +207,16 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
         playerController.AddHistoy(history);
         
-        Debug.Log("Joined to Room");
-        roomPage.SetActive(true);
-        roomCode.text = "Room Code" + "\n" + PhotonNetwork.CurrentRoom.Name;
-        SetPlayerInLobby();
+        ShowLobby();
         UpdateStartButton();
+
+        currentRoom = PhotonNetwork.CurrentRoom.Name;
         //LoadScene();
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
     {
-        SetPlayerInLobby();
+        ShowLobby();
         startButton.GetComponent<Button>().interactable = true;
         //Instantiate(playerListPrefab, playerListContent).GetComponent<PlayerListItem>().Setup(newPlayer);
     }
@@ -237,9 +295,12 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     #endregion
 
     #region Lobby
-    private void SetPlayerInLobby()
+    private void ShowLobby()
     {
-        foreach(Player player in PhotonNetwork.PlayerList)
+        roomPage.SetActive(true);
+        roomCode.text = "Room Code" + "\n" + PhotonNetwork.CurrentRoom.Name;
+
+        foreach (Player player in PhotonNetwork.PlayerList)
         {
             if(player == PhotonNetwork.LocalPlayer)
             {

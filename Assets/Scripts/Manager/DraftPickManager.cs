@@ -34,6 +34,9 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
     [SerializeField]
     Text loadingText;
 
+    [SerializeField]
+    GameObject reconnectScreen;
+
     List<GameObject> cardAvailable;
 
     List<Character> selectedCharacter;
@@ -55,7 +58,8 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
     bool startTimer = false;
     double timerIncrementValue;
     double startTime;
-    [SerializeField] double timer = 15;
+
+    [SerializeField] double timer = 30;
     ExitGames.Client.Photon.Hashtable CustomeValue;
 
     public delegate void DraftFinishedDelegate();
@@ -364,4 +368,9 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
     }
 
     #endregion
+
+    public void ActiveReconnectSreen(bool isActive)
+    {
+        reconnectScreen.SetActive(isActive);
+    }
 }

@@ -8,7 +8,7 @@ using UnityEngine.EventSystems;
 using System.IO;
 using UnityEngine.SceneManagement;
 
-public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallback
+public class RoundManager : MonoBehaviourPunCallbacks
 {
     [SerializeField]
     private Camera currentCamera;
@@ -71,6 +71,9 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
 
     [SerializeField]
     GameObject requestSurrendUi;
+
+    [SerializeField]
+    GameObject reconnectScreen;
 
     /*//GRID SYSTEM VARIABLE
     Vector3 cursorPosition;
@@ -138,6 +141,20 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
         }
 
     }
+
+    private static RoundManager instance;
+
+    public RoundManager Instance
+    {
+        get
+        {
+            if (instance == null)
+                instance = this;
+
+            return instance;
+        }
+    }
+
     private void Awake()
     {
         view = GetComponent<PhotonView>();
@@ -155,8 +172,6 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
     {
         CharacterInstantiatedEvent += OnCharacterInstantiated;
 
-        enemyCharacter = new List<GameObject>();
-
         ready = false;
 
         firstClickTime = 0f;
@@ -169,38 +184,7 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
 
     // Update is called once per frame
     void Update()
-    {
-        GameObject[] allGo = GameObject.FindGameObjectsWithTag("Character");
-
-        if (enemyCharacter.Count <= gameManager.CountEnemyCharacter)
-        {
-            foreach (GameObject go in allGo)
-            {
-                if (go == null)
-                    return;
-
-                if (!go.GetComponent<PhotonView>().IsMine)
-                {
-                    enemyCharacter.Add(go);
-                    CharacterMovement charMove = go.GetComponent<CharacterMovement>();
-                    CharacterController controller = GameObject.Find("CharacterController").GetComponent<CharacterController>();
-
-                    char[] charArr = go.name.ToCharArray();
-                    int i;
-                    for(i = 0; i < charArr.Length; i++)
-                    {
-                        if(charArr[i] == '(')
-                        {
-                            break;
-                        }
-                    }
-
-                    charMove.SetCharacter(controller.GetCharacterById(go.name.Substring(0, i)), null);
-
-                }
-            }
-        }
-
+    { 
         //Touch touch = Input.GetTouch(0);
 
         if (Input.GetMouseButtonUp(0))//touch.phase == TouchPhase.Began)
@@ -254,6 +238,29 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
         //structure.transform.position = currentCamera.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, 5f));
 
     }*/
+
+    public void AddEnemyCharacter(GameObject enemyGo)
+    {
+        if(enemyCharacter == null)
+            enemyCharacter = new List<GameObject>();
+
+        CharacterMovement charMove = enemyGo.GetComponent<CharacterMovement>();
+        CharacterController controller = GameObject.Find("CharacterController").GetComponent<CharacterController>();
+
+        char[] charArr = enemyGo.name.ToCharArray();
+        int i;
+        for (i = 0; i < charArr.Length; i++)
+        {
+            if (charArr[i] == '(')
+            {
+                break;
+            }
+        }
+
+        charMove.SetCharacter(controller.GetCharacterById(enemyGo.name.Substring(0, i)), null);
+
+        enemyCharacter.Add(enemyGo);
+    }
 
     public override void OnRoomPropertiesUpdate(ExitGames.Client.Photon.Hashtable propertiesThatChanged)
     {
@@ -471,8 +478,16 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
     #endregion
 
     #region Round
+
+    IEnumerator Delay(float delayTime)
+    {
+        yield return new WaitForSeconds(delayTime);
+    }
+
     private void PlayRound()
     {
+        StartCoroutine(Delay(3f));
+
         roundResultUI.SetActive(false);
 
         StartTimer();
@@ -524,7 +539,8 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
 
         bases = new List<BaseLocation>();
         characterSelected = null;
-        enemyCharacter = new List<GameObject>();
+
+        enemyCharacter = null;
 
         Instantiate();
     }
@@ -616,8 +632,6 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
         CharacterMovement characterMovement = go.GetComponent<CharacterMovement>();
 
         GameObject cardGo = SpawnManager.SpawnCard(character, characterSelection.GetComponent<Transform>(), true);
-
-        
 
         Slider slider = cardGo.GetComponent<Transform>().GetChild(2).GetComponent<Slider>();
 
@@ -823,12 +837,11 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
     }
     #endregion
 
-    private IEnumerator ShowDrawTimer()
+    private IEnumerator ShowDrawTimer(int timer)
     {
-        int timer = 10;
-
         while (timer >= 0 && requestDrawUI.activeInHierarchy)
         {
+            Debug.Log("Timer : " + timer);
             requestTimeSlider.value = timer;
             timer--;
             yield return new WaitForSeconds(1f);
@@ -876,7 +889,7 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
     public void RequestDraw()
     {
         requestDrawUI.SetActive(true);
-        StartCoroutine(ShowDrawTimer());
+        StartCoroutine(ShowDrawTimer(10));
     }
 
     [PunRPC]
@@ -896,7 +909,10 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
     #region Button Method
     public void BackToMenu()
     {
-        SceneManager.LoadScene("Menu");
+        if(PhotonNetwork.CurrentRoom != null)
+            PhotonNetwork.LeaveRoom();
+
+        gameManager.BackToMenu();
     }
 
     public void Option()
@@ -907,6 +923,7 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
     public void ConfirmSurrend()
     {
         optionUi.SetActive(false);
+        requestSurrendUi.SetActive(false);
         view.RPC("RoundResult", RpcTarget.Others, ENEMYLEFT);
         gameManager.MatchResult(ENEMYLEFT);
     }
@@ -942,9 +959,9 @@ public class RoundManager : MonoBehaviourPunCallbacks, IPunInstantiateMagicCallb
         optionUi.SetActive(false);
     }
 
-    public void OnPhotonInstantiate(PhotonMessageInfo info)
+    public void ActiveReconnectSreen(bool isActive)
     {
-        Debug.Log("Instantiate : " + info);
+        reconnectScreen.SetActive(isActive);
     }
     #endregion
 }

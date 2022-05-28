@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
 public class History : ScriptableObject
 {
     public string historyID;
@@ -22,7 +23,7 @@ public class History : ScriptableObject
     {
         get
         {
-            return this.HistoryID;
+            return this.historyID;
         }
 
         set

@@ -6,9 +6,15 @@ using UnityEngine.EventSystems;
 using Firebase.Database;
 using Firebase.Extensions;
 using System.Linq;
+using System.Threading.Tasks;
+using Firebase.Auth;
+using UnityEngine.SceneManagement;
+using System.IO;
 
 public class MainMenuManager : MonoBehaviour
 {
+    private string userID;
+
     [SerializeField]
     private Transform spawn;
 
@@ -72,6 +78,8 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField]
     private GameObject loadingScreen;
 
+    private List<GameObject> leaderboardItemList;
+
     private const int MAXSTAMINA = 30;
     private const float MAXWALKSPEED = 0.7f;
     private const float MAXRUNSPEED = 3f;
@@ -90,7 +98,14 @@ public class MainMenuManager : MonoBehaviour
     public bool taskNetwork;
     public bool taskStatistic;
 
+    List<PlayerInfo> leaderboardList;
+
     MainMenuManager instance;
+
+    [SerializeField]
+    string manualUser;
+
+    bool allowQuit;
 
     public MainMenuManager Instance
     {
@@ -107,26 +122,44 @@ public class MainMenuManager : MonoBehaviour
         set { this.taskNetwork = value; }
     }
 
-    private DatabaseManager dbManager;
+    private PlayerController pController;
 
     public delegate void TaskDelegate();
     public event TaskDelegate taskEvent;
 
+    private DatabaseManager dbManager;
+
+    private void Awake()
+    {
+        Input.backButtonLeavesApp = true;
+    }
+
     private void Start()
     {
-        taskEvent += HandleTask;
-
-        PlayerController pController = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
+        if (FirebaseAuth.DefaultInstance.CurrentUser == null)
+            userID = manualUser;
+        else
+            userID = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
 
         dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
 
-        //pController.DbReference.Child("Players").Child(pController.UserID).Child("History").ChildChanged += HandleChildChanged;
-        
-        ShowCharacter();
+        taskEvent += HandleTask;
 
-        ShowProfile();
+        pController = PlayerController.GetInstance();
 
-        ShowLeaderboard();
+        leaderboardItemList = new List<GameObject>();
+
+        dbManager.Reference.Child("Players").Child(userID).Child("PlayerInfo").ValueChanged += HandleChangePlayerInfo;
+
+        dbManager.Reference.Child("Players").Child(userID).Child("History").ChildAdded += HandleHistoryChildAdded;
+
+        dbManager.Reference.Child("Players").ChildAdded += HandleLeaderboardChildAdded;
+
+        dbManager.Reference.Child("Players").ChildChanged += HandleLeaderboardChildChange;
+
+        ShowAllCharacter();
+
+        allowQuit = false;
     }
 
     public void HandleTask()
@@ -135,7 +168,7 @@ public class MainMenuManager : MonoBehaviour
             loadingScreen.SetActive(false);
     }
 
-    private void ShowCharacter()
+    private void ShowAllCharacter()
     {
         CharacterController controller = GameObject.Find("CharacterController").GetComponent<CharacterController>();
         RectTransform rect = spawn.GetComponent<RectTransform>();
@@ -201,6 +234,63 @@ public class MainMenuManager : MonoBehaviour
         accelerationSlider.value = character.acceleration;
     }
 
+    void LoadTempState(PlayerInfo pInfo)
+    {
+        string SAVE_FILE = "tempState.dat";
+
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE);
+
+        if (File.Exists(filename))
+        {
+            Debug.Log("File Found");
+
+            string json = File.ReadAllText(filename);
+
+            History history = ScriptableObject.CreateInstance<History>();
+
+            JsonUtility.FromJsonOverwrite(json, history);
+            
+            File.Delete(filename);
+
+            dbManager.AddHistory(history, userID).ContinueWithOnMainThread(task =>
+            {
+                if (task.IsCompleted)
+                {
+                    Debug.Log("Store History Success");
+                }
+            });
+
+            pInfo.BattlePoint += history.BattlePoint;
+
+            dbManager.UpdatePlayerInfo(userID, pInfo).ContinueWithOnMainThread(task =>
+            {
+                if (task.IsCompleted)
+                {
+                    Debug.Log("Update Player Info Success");
+                }
+            });
+        }
+        else
+        {
+            Debug.Log("File Not Found");
+        }
+    }
+
+    IEnumerator SaveQuit()
+    {
+        History history = ScriptableObject.CreateInstance<History>();
+        history.MatchResult = -1;
+        history.MatchType = 0;
+        history.BattlePoint = -8;
+
+        var dbTask = dbManager.AddHistory(history, userID);
+
+        yield return new WaitUntil(predicate: () => dbTask.IsCompleted);
+
+        allowQuit = true;
+        Application.Quit();
+    }
+
     public void ChangeMenu(string menuName)
     {
         Debug.Log(menuName);
@@ -227,114 +317,105 @@ public class MainMenuManager : MonoBehaviour
         }
     }
 
-    public void ShowProfile()
+    public void HandlePlayerInfo(PlayerInfo info)
     {
-        PlayerController pController = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
+        Scene scene = SceneManager.GetActiveScene();
 
-        dbManager.GetPlayerInfo(pController.UserID).ContinueWithOnMainThread(task =>
-        {
-            if (task.IsCompleted)
-            {
-                PlayerInfo info = task.Result;
-                
-                profileNameText.text = info.Username;
-
-                usernameText.text = info.Username;
-                battlePointText.text = info.BattlePoint.ToString();
-
-                MatchMakingManager matchManager = GameObject.Find("MatchManager").GetComponent<MatchMakingManager>().GetInstance();
-                matchManager.InitializeNetwork(info.Username);
-
-                taskProfile = true;
-                taskEvent();
-            }
-        });
-
-        dbManager.GetStatistic(pController.UserID).ContinueWithOnMainThread(task2 =>
-        {
-            if (task2.IsCompleted)
-            {
-                Statistic statistic = task2.Result;
-
-                profileIdText.text = "#" + pController.UserID;
-
-                winStatistic.text = statistic.Win.ToString();
-                loseStatistic.text = statistic.Lose.ToString();
-                drawStatistic.text = statistic.Draw.ToString();
-
-                taskStatistic = true;
-                taskEvent();
-            }
-
-            if (task2.IsFaulted)
-            {
-                Debug.Log("Error : " + task2.Exception);
-            }
-            Debug.Log("PlayerInfo");
-        });
-    }
-
-    public void ShowLeaderboard()
-    {
-        dbManager.GetLeaderboard().ContinueWithOnMainThread(task =>
-        {
-            if (task.IsCompleted)
-            {
-                List<PlayerInfo> leaderboardList = task.Result.OrderByDescending((PlayerInfo p) => p.BattlePoint).ToList();
-
-                Debug.Log("Leaderboard : " + task.Result.Count);
-                int placePos = 0;
-
-                foreach (PlayerInfo pInfo in leaderboardList)
-                {
-                    placePos++;
-
-                    GameObject leaderboardGo = Instantiate(leaderboardItem, leaderboardSpawn);
-
-                    switch (placePos)
-                    {
-                        case 1:
-                            leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = stPlaceColor;
-                            break;
-                        case 2:
-                            leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = ndPlaceColor;
-                            break;
-                        case 3:
-                            leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = rdPlaceColor;
-                            break;
-                        default:
-                            leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = thPlaceColor;
-                            break;
-                    }
-
-                    leaderboardGo.transform.GetChild(0).GetChild(0).GetComponent<Text>().text = placePos.ToString();
-                    leaderboardGo.transform.GetChild(1).GetComponent<Text>().text = pInfo.Username;
-                    leaderboardGo.transform.GetChild(2).GetChild(0).GetComponent<Text>().text = pInfo.BattlePoint.ToString();
-                    
-                    if(placePos == 10)
-                    {
-                        return;
-                    }
-                }
-
-                taskLeaderboard = true;
-                taskEvent();
-            }
-        });
-
-    }
-
-    void HandleChildAdded(object sender, ChildChangedEventArgs args)
-    {
-        if (args.DatabaseError != null)
-        {
-            Debug.LogError(args.DatabaseError.Message);
+        // Check if the name of the current Active Scene is your first Scene.
+        if (scene.name != "Menu")
             return;
-        }
-        // Do something with the data in args.Snapshot
+
+        profileNameText.text = info.Username;
+
+        usernameText.text = info.Username;
+        battlePointText.text = info.BattlePoint.ToString();
+
+        MatchMakingManager matchManager = GameObject.Find("MatchManager").GetComponent<MatchMakingManager>().GetInstance();
+        matchManager.InitializeNetwork(info.Username);
+
+        taskProfile = true;
+        taskEvent();
     }
 
-    void HandleChildChanged(object sender, ChildChangedEventArgs args)
+    public void HandleHistory(Statistic statistic)
+    {
+        Scene scene = SceneManager.GetActiveScene();
+
+        // Check if the name of the current Active Scene is your first Scene.
+        if (scene.name != "Menu")
+            return;
+
+        profileIdText.text = "#" + userID;
+
+        winStatistic.text = statistic.Win.ToString();
+        loseStatistic.text = statistic.Lose.ToString();
+        drawStatistic.text = statistic.Draw.ToString();
+
+        taskStatistic = true;
+        taskEvent();
+    }
+
+    public void HandleLeaderboard(PlayerInfo info)
+    {
+        Scene scene = SceneManager.GetActiveScene();
+
+        // Check if the name of the current Active Scene is your first Scene.
+        if (scene.name != "Menu")
+            return;
+
+        if (leaderboardList == null)
+            leaderboardList = new List<PlayerInfo>();
+
+        leaderboardList.Add(info);
+
+        leaderboardList = leaderboardList.OrderByDescending((PlayerInfo p) => p.BattlePoint).ToList();
+
+        int placePos = 0;
+        foreach(GameObject go in leaderboardItemList)
+        {
+            Destroy(go);
+        }
+
+        foreach (PlayerInfo pInfo in leaderboardList)
+        {
+            placePos++;
+
+            GameObject leaderboardGo = Instantiate(leaderboardItem, leaderboardSpawn);
+
+            leaderboardItemList.Add(leaderboardGo);
+
+            switch (placePos)
+            {
+                case 1:
+                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = stPlaceColor;
+                    break;
+                case 2:
+                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = ndPlaceColor;
+                    break;
+                case 3:
+                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = rdPlaceColor;
+                    break;
+                default:
+                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = thPlaceColor;
+                    break;
+            }
+
+            leaderboardGo.transform.GetChild(0).GetChild(0).GetComponent<Text>().text = placePos.ToString();
+            leaderboardGo.transform.GetChild(1).GetComponent<Text>().text = pInfo.Username;
+            leaderboardGo.transform.GetChild(2).GetChild(0).GetComponent<Text>().text = pInfo.BattlePoint.ToString();
+
+            if (placePos == 11)
+            {
+                return;
+            }
+        }
+
+        taskLeaderboard = true;
+        taskEvent();
+
+    }
+
+    public void HandleChangePlayerInfo(object sender, ValueChangedEventArgs args)
     {
         if (args.DatabaseError != null)
         {
@@ -342,27 +423,44 @@ public class MainMenuManager : MonoBehaviour
             return;
         }
 
-        Debug.Log("Data Changed");
-        Debug.Log(args.Snapshot);
+        PlayerInfo pInfo = pController.GetUser(args.Snapshot);
+        pController.PlayerInfo = pInfo;
+        HandlePlayerInfo(pInfo);
+
+        LoadTempState(pInfo);
     }
 
-    void HandleChildRemoved(object sender, ChildChangedEventArgs args)
+    public void HandleLeaderboardChildChange(object sender, ChildChangedEventArgs args)
     {
         if (args.DatabaseError != null)
         {
             Debug.LogError(args.DatabaseError.Message);
             return;
         }
-        // Do something with the data in args.Snapshot
+
+        //Nilai leaderboard berubah
     }
 
-    void HandleChildMoved(object sender, ChildChangedEventArgs args)
+    public void HandleLeaderboardChildAdded(object sender, ChildChangedEventArgs args)
     {
         if (args.DatabaseError != null)
         {
             Debug.LogError(args.DatabaseError.Message);
             return;
         }
-        // Do something with the data in args.Snapshot
+
+        HandleLeaderboard(pController.GetUser(args.Snapshot.Child("PlayerInfo")));
     }
+
+    public void HandleHistoryChildAdded(object sender, ChildChangedEventArgs args)
+    {
+        if (args.DatabaseError != null)
+        {
+            Debug.LogError(args.DatabaseError.Message);
+            return;
+        }
+
+        HandleHistory(pController.GetStatistic(args));
+    }
+
 }

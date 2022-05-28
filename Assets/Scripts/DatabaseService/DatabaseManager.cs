@@ -17,12 +17,20 @@ public class DatabaseManager : ScriptableObject
     {
         if (instance == null)
         {
-            instance = this;
-
             reference = FirebaseDatabase.DefaultInstance.RootReference;
+
+            instance = this;
         }
 
         return instance;
+    }
+
+    public DatabaseReference Reference
+    {
+        get
+        {
+            return this.reference;
+        }
     }
 
     public void CreateUser(string username, string userId)
@@ -36,18 +44,21 @@ public class DatabaseManager : ScriptableObject
         reference.Child("Players").Child(userId).Child("PlayerInfo").SetRawJsonValueAsync(json);
     }
 
-    public async Task<bool> UpdatePlayerInfo(string userId, PlayerInfo pInfo)
+    public async Task UpdatePlayerInfo(string userId, PlayerInfo pInfo)
     {
         string json = JsonUtility.ToJson(pInfo);
         
-         await reference.Child("Players").Child(userId).Child("PlayerInfo").SetRawJsonValueAsync(json);
+        await reference.Child("Players").Child(userId).Child("PlayerInfo").SetRawJsonValueAsync(json);
 
-        return true;
     }
 
     public async Task<bool> UserDataExist(string userId)
     {
+        Debug.Log("User Data Exist Run : " + userId);
+        Debug.Log("Reference : " + reference);
+
         DataSnapshot snapshot = await reference.Child("Players").Child(userId).GetValueAsync();
+
 
         if(snapshot.Value == null)
         {
@@ -82,46 +93,6 @@ public class DatabaseManager : ScriptableObject
         pInfo.BattlePoint = int.Parse(snapshot.Child("battlePoint").Value.ToString());
 
         return pInfo;
-    }
-
-    public IEnumerator LoadPlayers(string userID)
-    {
-        Debug.Log("IEstart get statistci");
-
-        var historyReference = reference.Child("Players").Child(userID).Child("History");
-
-        var DBTask = historyReference.GetValueAsync();
-
-        yield return new WaitUntil(predicate: () => DBTask.IsCompleted);
-
-        if (DBTask.Exception != null)
-        {
-            Debug.LogWarning(message: $"failed to register task with{DBTask.Exception}");
-        }
-        else
-        {
-            DataSnapshot snapshot = DBTask.Result;
-
-            foreach (DataSnapshot childSnapshot in snapshot.Children.Reverse<DataSnapshot>())
-            {
-                /*     Debug.Log("else load player foreach " + childSnapshot);
-                     Debug.Log("else load player foreach2 " + childSnapshot.Child("name"));*/
-
-                String HistoryID = childSnapshot.Child("HistoryID").Value.ToString();
-                int battlePoint = int.Parse(childSnapshot.Child("battlePoint").Value.ToString());
-                int matchResult = int.Parse(childSnapshot.Child("matchResult").Value.ToString());
-                int matchStatus = int.Parse(childSnapshot.Child("matchStatus").Value.ToString());
-
-                Debug.Log("History ID: " + HistoryID + "---------------------");
-                Debug.Log("battlePoint: " + battlePoint);
-                Debug.Log("matchResult: " + matchResult);
-                Debug.Log("matchStatus: " + matchStatus);
-
-                /*                Debug.Log("end else load player foreach");
-                */
-            }
-        }
-
     }
 
 
@@ -177,7 +148,7 @@ public class DatabaseManager : ScriptableObject
 
     public async Task<bool> AddHistory(History history,  string userID)
     {
-        await GetLastIndex().ContinueWithOnMainThread(task =>
+        await GetLastIndex(userID).ContinueWithOnMainThread(task =>
         {
             if (task.IsCompleted)
             {
@@ -196,9 +167,9 @@ public class DatabaseManager : ScriptableObject
         return true;
     }
 
-    private async Task<long> GetLastIndex()
+    private async Task<long> GetLastIndex(string userId)
     {
-        DataSnapshot snapshot = await reference.Child("Players").Child("History").GetValueAsync();
+        DataSnapshot snapshot = await reference.Child("Players").Child(userId).Child("History").GetValueAsync();
 
         if(snapshot != null)
         {
@@ -213,9 +184,9 @@ public class DatabaseManager : ScriptableObject
     public async Task<bool> CreateHistory(History history, long lastIndex, string userID)
     {
         if (lastIndex < 10)
-            history.HistoryID = "HS0" + lastIndex + 1;
+            history.HistoryID = "HS0" + (lastIndex + 1);
         else
-            history.HistoryID = "HS" + lastIndex + 1;
+            history.HistoryID = "HS" + (lastIndex + 1);
 
         string json = JsonUtility.ToJson(history);
 

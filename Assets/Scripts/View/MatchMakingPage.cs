@@ -16,6 +16,9 @@ public class MatchMakingPage : MonoBehaviour
     [SerializeField]
     private Toggle privateToggle;
 
+    [SerializeField]
+    private GameObject reconnectScreen;
+
     private const int PUBLICMATCH = 1;
     private const int PRIVATEMATCH = 0;
 
@@ -27,31 +30,18 @@ public class MatchMakingPage : MonoBehaviour
 
     public void CreateRoom()
     {
-        PlayerController pController = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
-        DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
+        PlayerController pController = PlayerController.GetInstance();
 
-        dbManager.GetPlayerInfo(pController.UserID).ContinueWithOnMainThread(task =>
+        PlayerInfo pInfo = pController.PlayerInfo;
+
+        if (privateToggle.isOn)
         {
-            if (task.IsCompleted)
-            {
-                PlayerInfo pInfo = task.Result;
-
-                Debug.Log("Toogle : " + privateToggle.isOn);
-
-                if (privateToggle.isOn)
-                {
-                    MatchMakingManager.CreateRoom(roomCodeIF.GetComponent<InputField>().text, PRIVATEMATCH);
-                }
-                else
-                {
-                    MatchMakingManager.CreateRoom(pInfo.Username + "#" + pInfo.BattlePoint, PUBLICMATCH);
-                }
-            }
-        });
-
-        
-
-        //manager.CreateRoom()
+            MatchMakingManager.CreateRoom(roomCodeIF.GetComponent<InputField>().text, PRIVATEMATCH);
+        }
+        else
+        {
+            MatchMakingManager.CreateRoom(pInfo.Username + "#" + pInfo.BattlePoint, PUBLICMATCH);
+        }
     }
 
     public void JoinRoom()
@@ -63,5 +53,10 @@ public class MatchMakingPage : MonoBehaviour
     public void SetPrivateToggle()
     {
         roomCodeIF.SetActive(privateToggle.isOn);
+    }
+
+    public void ActiveReconnectSreen(bool isActive)
+    {
+        reconnectScreen.SetActive(isActive);
     }
 }

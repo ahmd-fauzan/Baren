@@ -58,6 +58,7 @@ MonoBehaviour:
   - MoveCharacterRPC
   - DrawMatch
   - RequestDraw
+  - CancelMatch
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 1

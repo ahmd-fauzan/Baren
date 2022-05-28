@@ -12,8 +12,6 @@ public class AutentikasiManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        playerController = GameObject.Find("PlayerController").GetComponent<PlayerController>();
-
         SignOut();
 
         SignIn();
@@ -38,8 +36,6 @@ public class AutentikasiManager : MonoBehaviour
             Firebase.Auth.FirebaseUser newUser = task.Result;
             Debug.LogFormat("Firebase user created successfully: {0} ({1})",
                 newUser.DisplayName, newUser.UserId);
-
-            playerController.UserID = newUser.UserId;
         });
     }
 
@@ -63,9 +59,6 @@ public class AutentikasiManager : MonoBehaviour
             Firebase.Auth.FirebaseUser newUser = task.Result;
             Debug.LogFormat("User signed in successfully: {0} ({1})",
                 newUser.DisplayName, newUser.UserId);
-
-            playerController.UserID = newUser.UserId;
-
             //SceneManager.LoadScene("Profile");
 
         });

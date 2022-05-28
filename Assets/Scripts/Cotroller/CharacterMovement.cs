@@ -7,7 +7,7 @@ using UnityEngine.UI;
 using Photon.Realtime;
 using System;
 
-public class CharacterMovement : MonoBehaviour
+public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
 {
     private NavMeshAgent agent;
 
@@ -92,7 +92,8 @@ public class CharacterMovement : MonoBehaviour
         if(view.IsMine)
             StartCoroutine(UpdateStamina());
 
-        roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>();
+        if(roundManager == null)
+            roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>();
         
         gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
 
@@ -403,5 +404,14 @@ public class CharacterMovement : MonoBehaviour
         Outline outline = GetComponent<Outline>();
         outline.OutlineColor = color;
         outline.OutlineWidth = width;
+    }
+
+    public void OnPhotonInstantiate(PhotonMessageInfo info)
+    {
+        if (roundManager == null)
+            roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>();
+
+        if (!info.Sender.IsLocal)
+            roundManager.AddEnemyCharacter(this.gameObject);
     }
 }

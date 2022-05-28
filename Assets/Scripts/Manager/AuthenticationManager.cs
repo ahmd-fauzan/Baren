@@ -25,6 +25,8 @@ public class AuthenticationManager : MonoBehaviour
 
     int signType;
 
+    bool isValidDepend;
+
     Firebase.Auth.FirebaseUser user;
 
     [SerializeField]
@@ -48,9 +50,6 @@ public class AuthenticationManager : MonoBehaviour
 
     public void StartGame()
     {
-
-        PlayerController controller = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
-
         DatabaseManager manager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
         manager.UsernameExist(usernameIF.text).ContinueWithOnMainThread(task =>
         {
@@ -72,6 +71,8 @@ public class AuthenticationManager : MonoBehaviour
             {
                 if (task.Result == DependencyStatus.Available)
                 {
+                    isValidDepend = true;
+
                     auth = FirebaseAuth.DefaultInstance;
 
                     OnSignInSilently();
@@ -121,15 +122,15 @@ public class AuthenticationManager : MonoBehaviour
     }
 
     public void SignInWithGoogle() {
+        if (!isValidDepend)
+            return;
+
         if (!inUnity)
         {
             OnSignIn();
         }
         else
         {
-            PlayerController controller = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
-            controller.UserID = userId;
-
             SceneManager.LoadScene("Menu");
         }
     }
@@ -186,7 +187,7 @@ public class AuthenticationManager : MonoBehaviour
         else
         {
             tokenId = task.Result.IdToken;
-
+            Debug.Log("Token : " + task.Result.IdToken);
             if (signType == 2)
                 SignInWithGoogleOnFirebase(task.Result.IdToken, true);
             else
@@ -196,24 +197,19 @@ public class AuthenticationManager : MonoBehaviour
 
     private void SignInWithGoogleOnFirebase(string idToken, bool isLogin)
     {
+        Debug.Log("Sign In Run");
+
         Credential credential = GoogleAuthProvider.GetCredential(idToken, null);
 
-        auth.SignInWithCredentialAsync(credential).ContinueWith(task =>
+        auth.SignInWithCredentialAsync(credential).ContinueWithOnMainThread(task =>
         {
-            AggregateException ex = task.Exception;
-            if (ex != null)
+            if (task.IsCompleted)
             {
-                if (ex.InnerExceptions[0] is FirebaseException inner && (inner.ErrorCode != 0)) { }
-            }
-            else
-            {
-                PlayerController controller = GameObject.Find("PlayerController").GetComponent<PlayerController>().Instance;
-                controller.UserID = task.Result.UserId;
-                
                 DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
 
                 if (!isLogin)
                 {
+                    Debug.Log("Run Login");
                     dbManager.CreateUser(usernameIF.text, task.Result.UserId);
                     SceneManager.LoadScene("Menu");
                     return;
@@ -221,20 +217,42 @@ public class AuthenticationManager : MonoBehaviour
 
                 dbManager.UserDataExist(task.Result.UserId).ContinueWithOnMainThread(task =>
                 {
+
                     if (task.IsCompleted)
                     {
+                        bool result = (bool)task.Result;
+                        Debug.Log("Run Login2 : " + result);
+
                         if (task.Result)
                         {
+                            Debug.Log("Load Scene Menu");
                             SceneManager.LoadScene("Menu");
+                            return;
                         }
                         else
                         {
                             usernameInput.SetActive(true);
                             buttonLogin.SetActive(false);
+                            return;
                         }
                     }
+
+                    if (task.IsCanceled)
+                    {
+                        Debug.Log("Canceled");
+                    }
+
+                    if (task.IsFaulted)
+                    {
+                        Debug.Log("Exception : " + task.Exception);
+                    }
                 });
-               
+            }
+
+            AggregateException ex = task.Exception;
+            if (ex != null)
+            {
+                if (ex.InnerExceptions[0] is FirebaseException inner && (inner.ErrorCode != 0)) { }
             }
         });
     }
