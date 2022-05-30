@@ -9,6 +9,8 @@ using Google;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Text.RegularExpressions;
+
 
 public class AuthenticationManager : MonoBehaviour
 {
@@ -38,6 +40,10 @@ public class AuthenticationManager : MonoBehaviour
     [SerializeField]
     GameObject buttonLogin;
 
+    [SerializeField]
+    Text UsernameWarningTXT;
+
+
     private void Awake()
     {
         configuration = new GoogleSignInConfiguration { WebClientId = webClientId, RequestEmail = true, RequestIdToken = true };
@@ -51,16 +57,32 @@ public class AuthenticationManager : MonoBehaviour
     public void StartGame()
     {
         DatabaseManager manager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
-        manager.UsernameExist(usernameIF.text).ContinueWithOnMainThread(task =>
+        /*     if (usernameIF.text.Contains("@")|| usernameIF.text.Contains("#") || usernameIF.text.Contains("$") || usernameIF.text.Contains("%") || usernameIF.text.Contains("^") || usernameIF.text.Contains("&") || usernameIF.text.Contains("*") || usernameIF.text.Contains("(") || usernameIF.text.Contains(")") || usernameIF.text.Contains("-") || usernameIF.text.Contains("_") || usernameIF.text.Contains("+") || usernameIF.text.Contains("=") || usernameIF.text.Contains("~") || usernameIF.text.Contains("`") || usernameIF.text.Contains("<") || usernameIF.text.Contains(",") || usernameIF.text.Contains(">") || usernameIF.text.Contains(".") || usernameIF.text.Contains("?") || usernameIF.text.Contains("/")) 
+                 Debug.Log("bangsat");*/
+
+        var regexItem = new Regex("^[a-zA-Z0-9 ]*$");
+
+        if (regexItem.IsMatch(usernameIF.text) &&  usernameIF.text.Length<= 8 )
         {
-            if (task.IsCompleted)
+            Debug.Log("if text");
+            manager.UsernameExist(usernameIF.text).ContinueWithOnMainThread(task =>
             {
-                if (!task.Result)
-                    SignInWithGoogleOnFirebase(tokenId, false);
-                else
-                    usernameIF.text = "";
-            }
-        });
+                if (task.IsCompleted)
+                {
+                    if (!task.Result)
+                        SignInWithGoogleOnFirebase(tokenId, false);
+                    else
+                        usernameIF.text = "";
+
+                }
+            });
+        }
+        else
+        {
+            Debug.Log(" Else text");
+            UsernameWarningTXT.gameObject.SetActive(true);
+        }
+ 
     }
 
     private void CheckFirebaseDependencies()
@@ -131,6 +153,9 @@ public class AuthenticationManager : MonoBehaviour
         }
         else
         {
+            /*usernameInput.SetActive(true);
+            buttonLogin.SetActive(false);*/
+
             SceneManager.LoadScene("Menu");
         }
     }

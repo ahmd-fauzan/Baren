@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using Photon.Pun;
 using Firebase.Extensions;
+using System.Text.RegularExpressions;
+
 
 public class MatchMakingPage : MonoBehaviour
 {
@@ -18,6 +20,9 @@ public class MatchMakingPage : MonoBehaviour
 
     [SerializeField]
     private GameObject reconnectScreen;
+
+    [SerializeField]
+    Text KoderoomValidTXT;
 
     private const int PUBLICMATCH = 1;
     private const int PRIVATEMATCH = 0;
@@ -46,8 +51,23 @@ public class MatchMakingPage : MonoBehaviour
 
     public void JoinRoom()
     {
-        MatchMakingManager manager = GameObject.Find("MatchManager").GetComponent<MatchMakingManager>().GetInstance();
-        manager.JoinRoom(roomNameIF.text);
+        var regexItem = new Regex("^[0-9 ]*$");
+
+        if (regexItem.IsMatch(roomNameIF.text) && roomNameIF.text.Length == 6)
+        {
+            Debug.Log("kode room sesuai");
+            MatchMakingManager manager = GameObject.Find("MatchManager").GetComponent<MatchMakingManager>().GetInstance();
+            manager.JoinRoom(roomNameIF.text);
+        }
+
+        else
+        {
+            Debug.Log("Kode room tidak sesuai");
+            KoderoomValidTXT.gameObject.SetActive(true);
+
+        }
+
+ 
     }
 
     public void SetPrivateToggle()
