@@ -75,6 +75,15 @@ public class RoundManager : MonoBehaviourPunCallbacks
     [SerializeField]
     GameObject reconnectScreen;
 
+    [SerializeField]
+    GameObject SurrendConfirm;
+
+    [SerializeField]
+    GameObject DrawRequest;
+
+    [SerializeField]
+    GameObject CloseSurrendUI;
+
     /*//GRID SYSTEM VARIABLE
     Vector3 cursorPosition;
 
@@ -923,7 +932,7 @@ public class RoundManager : MonoBehaviourPunCallbacks
     public void ConfirmSurrend()
     {
         optionUi.SetActive(false);
-        requestSurrendUi.SetActive(false);
+        SurrendConfirm.SetActive(false);
         view.RPC("RoundResult", RpcTarget.Others, ENEMYLEFT);
         gameManager.MatchResult(ENEMYLEFT);
     }
@@ -964,4 +973,31 @@ public class RoundManager : MonoBehaviourPunCallbacks
         reconnectScreen.SetActive(isActive);
     }
     #endregion
+
+    public void ShowDrawRequest()
+    {
+        DrawRequest.SetActive(true);
+        optionUi.SetActive(false);
+    }
+
+    public void ShowSurrendConfirm()
+    {
+        SurrendConfirm.SetActive(true);
+        optionUi.SetActive(false);
+    }
+
+    public void CloseOptionUI()
+    {
+        optionUi.SetActive(false);
+    }
+
+    public void ShowOption()
+    {
+        optionUi.SetActive(true);
+    }
+
+    public void CloseSurrendConfirm()
+    {
+        SurrendConfirm.SetActive(false);
+    }
 }
