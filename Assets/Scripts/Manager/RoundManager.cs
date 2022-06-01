@@ -816,6 +816,7 @@ public class RoundManager : MonoBehaviourPunCallbacks
         }
     }
 
+    //UPDATE HAPUS STATUS. KONDISI DILAKUKAN DENGNA PENGECEKAN CHARACTER ID
     private void MoveCharacter(Vector3 position, int touchCount, string characterId, string status)
     {
         if(status == gameManager.GetStatus())
@@ -823,6 +824,7 @@ public class RoundManager : MonoBehaviourPunCallbacks
             foreach(BaseLocation b in bases)
             {
                 CharacterMovement charMovement = b.Character.GetComponent<CharacterMovement>();
+                
                 if(charMovement.GetCharacter().characterId == characterId)
                 {
                     charMovement.Move(position, touchCount);
@@ -836,7 +838,6 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
                 if (go.name == (characterId + "(Clone)"))
                 {
-                    Debug.Log("Move : " + go.name);
                     CharacterMovement charMovement = go.GetComponent<CharacterMovement>();
 
                     charMovement.Move(position, touchCount);

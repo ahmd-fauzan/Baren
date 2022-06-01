@@ -145,7 +145,6 @@ public class PlayerController
 
     public PlayerInfo GetUser(DataSnapshot snapshot)
     {
-        Debug.Log(snapshot.GetRawJsonValue());
         PlayerInfo pInfo = ScriptableObject.CreateInstance<PlayerInfo>();
 
         pInfo.Username = snapshot.Child("username").Value.ToString();
@@ -155,14 +154,14 @@ public class PlayerController
 
     }
 
-    public Statistic GetStatistic(ChildChangedEventArgs args)
+    public Statistic GetStatistic(DataSnapshot snapshot)
     {
         History history = ScriptableObject.CreateInstance<History>();
 
-        history.HistoryID = args.Snapshot.Child("historyID").Value.ToString();
-        history.MatchType = int.Parse(args.Snapshot.Child("matchType").Value.ToString());
-        history.MatchResult = int.Parse(args.Snapshot.Child("matchResult").Value.ToString());
-        history.BattlePoint = int.Parse(args.Snapshot.Child("battlePoint").Value.ToString());
+        history.HistoryID = snapshot.Child("historyID").Value.ToString();
+        history.MatchType = int.Parse(snapshot.Child("matchType").Value.ToString());
+        history.MatchResult = int.Parse(snapshot.Child("matchResult").Value.ToString());
+        history.BattlePoint = int.Parse(snapshot.Child("battlePoint").Value.ToString());
 
         if (statistic == null)
             statistic = ScriptableObject.CreateInstance<Statistic>();

@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using Firebase.Extensions;
 using UnityEngine.EventSystems;
 using Google;
+using System.Linq;
 
 public class MatchMakingManager : MonoBehaviourPunCallbacks
 {
@@ -23,7 +24,7 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     [SerializeField] Text enemyNameText;
 
-    public List<GameObject> roomList;
+    public List<GameObject> roomGOList;
 
     private MatchMakingManager instance;
 
@@ -143,6 +144,7 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         RoomOptions options = new RoomOptions();
         options.MaxPlayers = 2;
         options.IsOpen = true;
+        options.EmptyRoomTtl = 0;
 
         Debug.Log("Status : " + status);
         if (status == 0)
@@ -211,6 +213,8 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         UpdateStartButton();
 
         currentRoom = PhotonNetwork.CurrentRoom.Name;
+        Destroy(roomGOList.Find(x => x.name == currentRoom));
+        roomGOList.Remove(roomGOList.Find(x => x.name == currentRoom));
         //LoadScene();
     }
 
@@ -246,23 +250,50 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     #region RooList
     public override void OnRoomListUpdate(List<RoomInfo> roomList)
     {
-        Debug.Log("Update Room List");
-        Debug.Log(roomList.Count);
-
-        foreach (GameObject trans in this.roomList)
+        foreach(RoomInfo info in roomList)
         {
-            Destroy(trans);
+            if(roomGOList.Count == 1)
+            {
+                Debug.Log("Jalan");
+                if(info.PlayerCount == 0)
+                {
+                    Destroy(roomGOList[0]);
+                    roomGOList.RemoveAt(0);
+                }
+            }
+
+            if (info.PlayerCount == 2)
+            {
+                Destroy(roomGOList.Find(x => x.name == info.Name));
+                roomGOList.RemoveAt(roomGOList.FindIndex(x => x.name == info.Name));
+            }
         }
-        for (int i = 0; i < roomList.Count; i++)
-        {
-            Debug.Log("Player : " + roomList[i].PlayerCount);
 
-            if (roomList[i].PlayerCount < 2 && roomList[i].PlayerCount > 0)
+        if(roomGOList.Count > roomList.Count)
+        {
+            var filtered = roomGOList
+                   .Where(x => !roomList.Any(y => y.Name != x.name));
+
+            Debug.Log("Filtered : " + filtered.ToList().Count);
+            foreach (GameObject go in filtered.ToList())
+            {
+                Destroy(go);
+                Debug.Log("Delete Go : " + go.name);
+                roomGOList.Remove(go);
+            }
+        }
+    
+
+        foreach(RoomInfo info in roomList)
+        {
+            Debug.Log("Room : " + info);
+            if (info.PlayerCount < 2 && info.PlayerCount > 0 && roomGOList.Find(x => x.name == info.Name) == null)
             {
                 GameObject addRoomList = Instantiate(roomListPrefab, roomListContent);
-                this.roomList.Add(addRoomList);
+                addRoomList.name = info.Name;
+                this.roomGOList.Add(addRoomList);
                 //addRoomList.transform.SetParent(roomListContent);
-                SetRoomInfo(addRoomList, roomList[i]);
+                SetRoomInfo(addRoomList, info);
             }
         }
     }

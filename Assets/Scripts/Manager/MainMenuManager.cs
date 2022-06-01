@@ -13,29 +13,25 @@ using System.IO;
 
 public class MainMenuManager : MonoBehaviour
 {
+    //Current Player ID
     private string userID;
 
+    //Current Player ID in Unity Editor
     [SerializeField]
-    private Transform spawn;
+    string manualUser;
+
+    #region ScriptPage
+    [SerializeField]
+    private LeaderboardPage leaderbaordPage;
 
     [SerializeField]
-    private GameObject attributBar;
+    private CharacterPage characterPage;
 
     [SerializeField]
-    private Slider runSpeedSlider;
+    private ProfilePage profilePage;
+    #endregion
 
-    [SerializeField]
-    private Slider walkSpeedSlider;
-
-    [SerializeField]
-    private Slider staminaSlider;
-
-    [SerializeField]
-    private Slider staminaRegenSlider;
-
-    [SerializeField]
-    private Slider accelerationSlider;
-
+    #region GameObject Content
     [SerializeField]
     private GameObject characterMenu;
 
@@ -47,65 +43,24 @@ public class MainMenuManager : MonoBehaviour
 
     [SerializeField]
     private GameObject profileMenu;
+    #endregion
 
-    [SerializeField]
-    private Text profileNameText;
-
-    [SerializeField]
-    private Text profileIdText;
-
-    [SerializeField]
-    private Text winStatistic;
-
-    [SerializeField]
-    private Text loseStatistic;
-
-    [SerializeField]
-    private Text drawStatistic;
-
-    [SerializeField]
-    private Text usernameText;
-
-    [SerializeField]
-    private Text battlePointText;
-
-    [SerializeField]
-    private GameObject leaderboardItem;
-
-    [SerializeField]
-    private Transform leaderboardSpawn;
-
+    //Screen Loading
     [SerializeField]
     private GameObject loadingScreen;
 
-    private List<GameObject> leaderboardItemList;
-
-    private const int MAXSTAMINA = 30;
-    private const float MAXWALKSPEED = 0.7f;
-    private const float MAXRUNSPEED = 3f;
-    private const int MAXACCELERATION = 9;
-    private const int MAXSTAMINAREGEN = 3;
-
-    private Color stPlaceColor = new Color32(255, 215, 0, 255);
-    private Color ndPlaceColor = new Color32(192, 192, 192, 255);
-    private Color rdPlaceColor = new Color32(205, 127, 50, 255);
-    private Color thPlaceColor = new Color32(130, 111, 102, 255);
-
-    private Character currentSelected;
-
+    #region Event
     public bool taskLeaderboard;
     public bool taskProfile;
     public bool taskNetwork;
     public bool taskStatistic;
+    #endregion
 
+    //Leaderboard Data
     List<PlayerInfo> leaderboardList;
 
+    //Singleton
     MainMenuManager instance;
-
-    [SerializeField]
-    string manualUser;
-
-    bool allowQuit;
 
     public MainMenuManager Instance
     {
@@ -125,7 +80,7 @@ public class MainMenuManager : MonoBehaviour
     private PlayerController pController;
 
     public delegate void TaskDelegate();
-    public event TaskDelegate taskEvent;
+    public event TaskDelegate TaskEvent;
 
     private DatabaseManager dbManager;
 
@@ -143,11 +98,9 @@ public class MainMenuManager : MonoBehaviour
 
         dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
 
-        taskEvent += HandleTask;
+        TaskEvent += HandleTask;
 
         pController = PlayerController.GetInstance();
-
-        leaderboardItemList = new List<GameObject>();
 
         dbManager.Reference.Child("Players").Child(userID).Child("PlayerInfo").ValueChanged += HandleChangePlayerInfo;
 
@@ -157,83 +110,19 @@ public class MainMenuManager : MonoBehaviour
 
         dbManager.Reference.Child("Players").ChildChanged += HandleLeaderboardChildChange;
 
-        ShowAllCharacter();
+        characterPage.ShowAllCharacter();
 
-        allowQuit = false;
+        ChangeMenu("Match");
     }
 
+    //Close Loading Screen
     public void HandleTask()
     {
         if (taskLeaderboard && taskProfile && taskNetwork && taskStatistic)
             loadingScreen.SetActive(false);
     }
 
-    private void ShowAllCharacter()
-    {
-        CharacterController controller = GameObject.Find("CharacterController").GetComponent<CharacterController>();
-        RectTransform rect = spawn.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(rect.sizeDelta.x, 319 * 4);
-        Character[] characterList = controller.GetCharacterList();
-
-        for (int i = 0; i < characterList.Length; i++)
-        {
-            GameObject go = SpawnManager.SpawnCard(characterList[i], spawn, false);
-            AddEvent(go, characterList[i]);
-        }
-    }
-
-    
-
-    public void AddEvent(GameObject go, Character character)
-    {
-        if (go.GetComponent<EventTrigger>() == null)
-        {
-            go.AddComponent<EventTrigger>();
-        }
-
-        EventTrigger trigger = go.GetComponent<EventTrigger>();
-        EventTrigger.Entry entry = new EventTrigger.Entry();
-
-        entry.eventID = EventTriggerType.PointerClick;
-
-        entry.callback.AddListener((functionIWant) => { ShowAttribut(character); });
-
-        trigger.triggers.Add(entry);
-    }
-
-    private void ShowAttribut(Character character)
-    {
-        if (currentSelected != null)
-        {
-            if (currentSelected.characterId == character.characterId)
-            {
-                GameObject myEventSystem = GameObject.Find("EventSystem");
-                myEventSystem.GetComponent<UnityEngine.EventSystems.EventSystem>().SetSelectedGameObject(null);
-
-                attributBar.SetActive(false);
-                currentSelected = null;
-
-                return;
-            }
-        }
-
-        currentSelected = character;
-
-        attributBar.SetActive(true);
-
-        runSpeedSlider.maxValue = MAXRUNSPEED;
-        walkSpeedSlider.maxValue = MAXWALKSPEED;
-        staminaSlider.maxValue = MAXSTAMINA;
-        staminaRegenSlider.maxValue = MAXSTAMINAREGEN;
-        accelerationSlider.maxValue = MAXACCELERATION;
-
-        runSpeedSlider.value = character.runSpeed;
-        walkSpeedSlider.value = character.walkSpeed;
-        staminaSlider.value = character.stamina;
-        staminaRegenSlider.value = character.staminaRegen;
-        accelerationSlider.value = character.acceleration;
-    }
-
+    //Load temp data
     void LoadTempState(PlayerInfo pInfo)
     {
         string SAVE_FILE = "tempState.dat";
@@ -276,21 +165,7 @@ public class MainMenuManager : MonoBehaviour
         }
     }
 
-    IEnumerator SaveQuit()
-    {
-        History history = ScriptableObject.CreateInstance<History>();
-        history.MatchResult = -1;
-        history.MatchType = 0;
-        history.BattlePoint = -8;
-
-        var dbTask = dbManager.AddHistory(history, userID);
-
-        yield return new WaitUntil(predicate: () => dbTask.IsCompleted);
-
-        allowQuit = true;
-        Application.Quit();
-    }
-
+    //Change Content Menu
     public void ChangeMenu(string menuName)
     {
         Debug.Log(menuName);
@@ -317,6 +192,7 @@ public class MainMenuManager : MonoBehaviour
         }
     }
 
+    #region HandleFirebaseChange
     public void HandlePlayerInfo(PlayerInfo info)
     {
         Scene scene = SceneManager.GetActiveScene();
@@ -325,16 +201,15 @@ public class MainMenuManager : MonoBehaviour
         if (scene.name != "Menu")
             return;
 
-        profileNameText.text = info.Username;
+        profilePage.SetProfileInfo(info, userID);
 
-        usernameText.text = info.Username;
-        battlePointText.text = info.BattlePoint.ToString();
+        profilePage.SetPlayerInfo(info);
 
         MatchMakingManager matchManager = GameObject.Find("MatchManager").GetComponent<MatchMakingManager>().GetInstance();
         matchManager.InitializeNetwork(info.Username);
 
         taskProfile = true;
-        taskEvent();
+        TaskEvent();
     }
 
     public void HandleHistory(Statistic statistic)
@@ -345,14 +220,10 @@ public class MainMenuManager : MonoBehaviour
         if (scene.name != "Menu")
             return;
 
-        profileIdText.text = "#" + userID;
-
-        winStatistic.text = statistic.Win.ToString();
-        loseStatistic.text = statistic.Lose.ToString();
-        drawStatistic.text = statistic.Draw.ToString();
+        profilePage.SetStatisticInfo(statistic);
 
         taskStatistic = true;
-        taskEvent();
+        TaskEvent();
     }
 
     public void HandleLeaderboard(PlayerInfo info)
@@ -370,51 +241,15 @@ public class MainMenuManager : MonoBehaviour
 
         leaderboardList = leaderboardList.OrderByDescending((PlayerInfo p) => p.BattlePoint).ToList();
 
-        int placePos = 0;
-        foreach(GameObject go in leaderboardItemList)
-        {
-            Destroy(go);
-        }
-
-        foreach (PlayerInfo pInfo in leaderboardList)
-        {
-            placePos++;
-
-            GameObject leaderboardGo = Instantiate(leaderboardItem, leaderboardSpawn);
-
-            leaderboardItemList.Add(leaderboardGo);
-
-            switch (placePos)
-            {
-                case 1:
-                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = stPlaceColor;
-                    break;
-                case 2:
-                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = ndPlaceColor;
-                    break;
-                case 3:
-                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = rdPlaceColor;
-                    break;
-                default:
-                    leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = thPlaceColor;
-                    break;
-            }
-
-            leaderboardGo.transform.GetChild(0).GetChild(0).GetComponent<Text>().text = placePos.ToString();
-            leaderboardGo.transform.GetChild(1).GetComponent<Text>().text = pInfo.Username;
-            leaderboardGo.transform.GetChild(2).GetChild(0).GetComponent<Text>().text = pInfo.BattlePoint.ToString();
-
-            if (placePos == 11)
-            {
-                return;
-            }
-        }
+        if(leaderboardList != null && leaderboardList.Count > 0)
+            leaderbaordPage.UpdateLeaderboard(leaderboardList);
 
         taskLeaderboard = true;
-        taskEvent();
-
+        TaskEvent();
     }
+    #endregion
 
+    #region FirebaseEvent
     public void HandleChangePlayerInfo(object sender, ValueChangedEventArgs args)
     {
         if (args.DatabaseError != null)
@@ -460,7 +295,7 @@ public class MainMenuManager : MonoBehaviour
             return;
         }
 
-        HandleHistory(pController.GetStatistic(args));
+        HandleHistory(pController.GetStatistic(args.Snapshot));
     }
-
+    #endregion
 }
