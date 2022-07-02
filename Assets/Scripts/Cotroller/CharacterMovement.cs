@@ -38,6 +38,7 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
 
     Character character;
 
+    [SerializeField]
     private int currStamina;
 
     private Slider staminaBar;
@@ -76,31 +77,36 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
         {
             this.value = value;
         }
-        
+
     }
 
     private void Start()
     {
+
         InitAgent();
 
         rigid = GetComponent<Rigidbody>();
 
         view = GetComponent<PhotonView>();
+        if(view.IsMine)
+            Debug.Log("Calling Start Methode");
+
 
         animator = GetComponent<Animator>();
 
-        if(view.IsMine)
-            StartCoroutine(UpdateStamina());
+        StartCoroutine(UpdateStamina());
 
-        if(roundManager == null)
-            roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>();
-        
+        if (roundManager == null)
+            roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>().Instance;
+
         gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
 
         moving = false;
 
-        if(view.IsMine)
-            currStamina = character.stamina;
+        currStamina = character.stamina;
+
+        if (!view.IsMine)
+            Debug.Log("Karakter Musuh");
     }
 
     public void InitAgent()
@@ -111,7 +117,7 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
 
     public CharacterMovement GetInstance()
     {
-        return gameObject.GetComponent<CharacterMovement>();
+        return this;
     }
 
     IEnumerator RotateAgent(Quaternion currentRotation, Quaternion targetRotation)
@@ -126,7 +132,7 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
         }
         IsRotating = false;
         //agent.enabled = true;
-        
+
         agent.SetDestination(location);
     }
 
@@ -137,13 +143,13 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
 
     private void Update()
     {
-        if(Input.GetKeyUp(KeyCode.Space))
+        /*if(Input.GetKeyUp(KeyCode.Space))
             view.RPC("GetIdOutline", RpcTarget.Others, this.value, "show");
 
         if (Input.GetKeyUp(KeyCode.KeypadEnter))
-            view.RPC("GetIdOutline", RpcTarget.Others, this.value, "stop");
+            view.RPC("GetIdOutline", RpcTarget.Others, this.value, "stop");*/
 
-        if(agent != null)
+        if (agent != null)
         {
             if (agent.enabled)
             {
@@ -154,39 +160,41 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
                 else
                 {
                     animator.SetFloat("Moving", -1f);
-                    
+
                     moving = false;
 
-                    if(this.value == -1)
+                    if (this.value == -1)
                     {
-                        rigid.constraints = RigidbodyConstraints.FreezeAll;
+                        //rigid.constraints = RigidbodyConstraints.FreezeAll;
                     }
                 }
-
+                
                 if (!view.IsMine)
                     return;
 
-                if (currStamina <= 0)
+                if (currStamina <= 0 && this.value != -1)
                 {
                     agent.isStopped = true;
 
                     agent.ResetPath();
+
+                    view.RPC("StopCharacter", RpcTarget.Others, this.character.characterId);
+
+                    roundManager.DestroyMarkMarker();
                 }
                 else
                     agent.isStopped = false;
-                
+
             }
         }
-        
+
 
         if (!moving)
         {
-            
             rigid.constraints = RigidbodyConstraints.FreezeRotation;
         }
         else
         {
-            
             rigid.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         }
     }
@@ -210,14 +218,18 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
             }
             else
             {
-                if (this.character.stamina != currStamina && currStamina < 100)
+                if (this.character.stamina != currStamina && this.character.stamina > currStamina)
                 {
                     this.currStamina += this.character.staminaRegen;
                 }
             }
 
-            if(staminaBar != null)
-                staminaBar.value = this.currStamina;
+            if (view.IsMine)
+            {
+                if (staminaBar != null)
+                    staminaBar.value = this.currStamina;
+            }
+
         }
     }
 
@@ -226,13 +238,14 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
         if (agent == null)
             agent = GetComponent<NavMeshAgent>();
 
-        if(1 > 0)
+        if (1 > 0)
         {
             //agent.enabled = false;
+            if (agent.isStopped)
+                agent.isStopped = false;
 
             moving = true;
 
-            
             if (touchCount == 2)
                 UpdateSpeed(character.runSpeed);
             else
@@ -248,7 +261,7 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
             //StartCoroutine(RotateAgent(transform.rotation, lookRotation));
             //this.location = location;
         }
-        
+
     }
 
     public void SetAttribute(float speed, float acceleration)
@@ -289,13 +302,20 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
 
             if (view.IsMine && !character.GetComponent<PhotonView>().IsMine)
             {
-                if (character.value != -1)
+                if (character.value != -1 && character.Value != 0 && this.Value != -1 && this.Value != 0)
                 {
                     if (this.value < character.Value)
                     {
-                        roundManager.view.RPC("MoveCharacterRPC", RpcTarget.All, this.character.characterId, gameManager.GetStatus(), 1, roundManager.GetPrisoner());
+                        roundManager.view.RPC("MoveCharacterRPC", RpcTarget.All, this.character.characterId, gameManager.GetStatus(), 2, roundManager.GetPrisoner());
                         this.value = -1;
                         StopOutline();
+                    }
+                    else if (this.value > character.Value)
+                    {
+                        roundManager.CountEnemyPrisoner++;
+                        character.Value = -1;
+                        character.StopOutline();
+                        roundManager.DestroyMarkMarker();
                     }
                 }
             }
@@ -314,8 +334,8 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
                 roundManager.SetRound(2);
             }
         }
-        
-        if(collision.transform.tag == "PlayerFlag")
+
+        if (collision.transform.tag == "PlayerFlag")
         {
             if (view.IsMine && gameManager.GetStatus() == "Player2")
             {
@@ -381,8 +401,8 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
 
             }
         }
-        
-        if(other.transform.tag == "Mark")
+
+        if (other.transform.tag == "Mark")
         {
             Destroy(other.gameObject, 0.5f);
         }
@@ -408,10 +428,30 @@ public class CharacterMovement : MonoBehaviour, IPunInstantiateMagicCallback
 
     public void OnPhotonInstantiate(PhotonMessageInfo info)
     {
+        Debug.Log("Info Sender : " + info.Sender);
+
         if (roundManager == null)
-            roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>();
+            roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>().Instance;
 
         if (!info.Sender.IsLocal)
             roundManager.AddEnemyCharacter(this.gameObject);
+        else
+            roundManager.AddCharacterAgain(this);
+
+
+    }
+
+    [PunRPC]
+    public void StopCharacter(string characterId)
+    {
+        if(this.character.characterId == characterId)
+        {
+            if (!view.IsMine)
+            {
+                agent.isStopped = true;
+
+                agent.ResetPath();
+            }
+        }
     }
 }

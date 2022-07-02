@@ -7,6 +7,7 @@ public class PlayerInfo : ScriptableObject
 {
     public string username;
     public int battlePoint;
+    public float winRate;
 
     public PlayerInfo() { }
     public PlayerInfo(string username, int battlePoint)
@@ -37,6 +38,17 @@ public class PlayerInfo : ScriptableObject
         set
         {
             this.battlePoint = value;
+        }
+    }
+
+    public float WinRate { 
+        get
+        {
+            return this.winRate;
+        }
+        set
+        {
+            this.winRate = value;
         }
     }
 }

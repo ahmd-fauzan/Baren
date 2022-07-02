@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
+
 
 public class DatabaseManager : ScriptableObject
 {
@@ -31,17 +33,6 @@ public class DatabaseManager : ScriptableObject
         {
             return this.reference;
         }
-    }
-
-    public void CreateUser(string username, string userId)
-    {
-        PlayerInfo newUser = CreateInstance<PlayerInfo>();
-        newUser.Username = username;
-        newUser.BattlePoint = 0;
-
-        string json = JsonUtility.ToJson(newUser);
-        
-        reference.Child("Players").Child(userId).Child("PlayerInfo").SetRawJsonValueAsync(json);
     }
 
     public async Task UpdatePlayerInfo(string userId, PlayerInfo pInfo)
@@ -146,15 +137,20 @@ public class DatabaseManager : ScriptableObject
         return pInfoList;
     }
 
-    public async Task<bool> AddHistory(History history,  string userID)
+    public async Task<bool> AddHistory(History history, long index,  string userID)
     {
         await GetLastIndex(userID).ContinueWithOnMainThread(task =>
         {
             if (task.IsCompleted)
             {
-                long index = task.Result;
+                long currIndex;
+
+                if (index == -1)
+                    currIndex = task.Result;
+                else
+                    currIndex = index;
                 
-                CreateHistory(history, index, userID).ContinueWithOnMainThread(task =>
+                CreateHistory(history, currIndex, userID).ContinueWithOnMainThread(task =>
                 {
                     if (task.IsCompleted)
                     {
@@ -167,7 +163,7 @@ public class DatabaseManager : ScriptableObject
         return true;
     }
 
-    private async Task<long> GetLastIndex(string userId)
+    public async Task<long> GetLastIndex(string userId)
     {
         DataSnapshot snapshot = await reference.Child("Players").Child(userId).Child("History").GetValueAsync();
 
@@ -194,4 +190,53 @@ public class DatabaseManager : ScriptableObject
 
         return true;
     }
+
+    public void UpdateSignedIn(bool status, string userID)
+    {
+        Dictionary<string, bool> signedIn = new Dictionary<string, bool>();
+
+        signedIn.Add("SignedIn", status);
+
+        reference.Child("Players").Child(userID).Child("Auth").SetValueAsync(signedIn);
+    }
+
+    public async Task<bool> GetSignedIn(string userID)
+    {
+        DataSnapshot snapshot = await reference.Child("Players").Child(userID).Child("Auth").Child("SignedIn").GetValueAsync();
+
+        Debug.Log("Snaphost SignedIn : " + snapshot);
+        if(snapshot != null && snapshot.Value != null)
+        {
+            Debug.Log("SignedIn : " + snapshot.Value);
+
+            return Boolean.Parse(snapshot.Value.ToString());
+        }
+
+        return false;
+    }
+
+    public string GetUserKey()
+    {
+        var regexItem = new Regex("^[a-zA-Z0-9 ]*$");
+
+        string key1 = reference.Child("Players").Push().Key;
+        string key2 = reference.Child("Players").Push().Key;
+        string key = "";
+        foreach(char c in key1)
+        {
+            if (regexItem.IsMatch(c.ToString()) && key.Length < 28){
+                key += c;
+            }
+        }
+
+        foreach (char c in key2)
+        {
+            if (regexItem.IsMatch(c.ToString()) && key.Length < 28)
+            {
+                key += c;
+            }
+        }
+
+        return key;
+    } 
 }

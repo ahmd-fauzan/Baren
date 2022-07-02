@@ -68,8 +68,14 @@ public class CharacterPage : MonoBehaviour
         trigger.triggers.Add(entry);
     }
 
-    private void ShowAttribut(Character character)
+    public void ShowAttribut(Character character)
     {
+        if(character == null)
+        {
+            attributBar.SetActive(false);
+            return;
+        }
+
         if (currentSelected != null)
         {
             if (currentSelected.characterId == character.characterId)

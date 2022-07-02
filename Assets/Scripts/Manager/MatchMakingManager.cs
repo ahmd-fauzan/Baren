@@ -8,6 +8,7 @@ using Firebase.Extensions;
 using UnityEngine.EventSystems;
 using Google;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 public class MatchMakingManager : MonoBehaviourPunCallbacks
 {
@@ -26,7 +27,9 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     public List<GameObject> roomGOList;
 
-    private MatchMakingManager instance;
+    [SerializeField] private MainMenuManager menuManager;
+
+    [SerializeField] private MatchMakingPage page;
 
     [SerializeField]
     private string currentRoom;
@@ -73,9 +76,18 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     {
         if (PhotonNetwork.CurrentRoom.PlayerCount == 2)
         {
-            if(PhotonNetwork.IsMasterClient)
+            if (PhotonNetwork.IsMasterClient)
+            {
+                PhotonNetwork.CurrentRoom.IsVisible = false;
+                PhotonNetwork.CurrentRoom.IsOpen = false;
                 StartCoroutine(GoScene("DraftPick"));
+            }
         }
+    }
+    
+    public void ChangeScene(string sceneName)
+    {
+        StartCoroutine(GoScene(sceneName));
     }
 
     public IEnumerator GoScene(string sceneName)
@@ -89,62 +101,32 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         }
     }
 
-    public MatchMakingManager GetInstance()
-    {
-        if (instance == null)
-            instance = this;
-
-        return instance;
-    }
-
     public override void OnDisconnected(DisconnectCause cause)
     {
-        Debug.Log("Player disconnected : " + cause.ToString());
+        if (cause.ToString() == "MaxCcuReached")
+        {
+            page.ShowServerFullScreen();
+            Debug.Log("Server Full : " + cause);
+            return;
+        }
+
         if (cause.ToString() != "DisconnectByClientLogic")
         {
             MatchMakingPage page = GameObject.Find("MenuCanvas").GetComponent<MatchMakingPage>();
 
             page.ActiveReconnectSreen(true);
 
-            PhotonNetwork.Reconnect();
+            PhotonNetwork.ReconnectAndRejoin();
         }
     }
 
-    public override void OnConnected()
-    {
-        Debug.Log("Connected To Server");
-    }
-
-    private IEnumerator MainReconnect()
-    {
-        while (PhotonNetwork.NetworkingClient.LoadBalancingPeer.PeerState != ExitGames.Client.Photon.PeerStateValue.Disconnected)
-        {
-            Debug.Log("Waiting for client to be fully disconnected..", this);
-
-            yield return new WaitForSeconds(0.2f);
-        }
-
-        Debug.Log("Client is disconnected!", this);
-
-        if (!PhotonNetwork.ReconnectAndRejoin())
-        {
-            if (PhotonNetwork.Reconnect())
-            {
-                Debug.Log("Successful reconnected!", this);
-            }
-        }
-        else
-        {
-            Debug.Log("Successful reconnected and joined!", this);
-        }
-    }
-
-    public static void CreateRoom(string roomName, int status)
+    public void CreateRoom(string roomName, int status)
     {
         RoomOptions options = new RoomOptions();
         options.MaxPlayers = 2;
         options.IsOpen = true;
         options.EmptyRoomTtl = 0;
+        options.PlayerTtl = 60000;
 
         Debug.Log("Status : " + status);
         if (status == 0)
@@ -157,11 +139,13 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         }
 
         PhotonNetwork.CreateRoom(roomName, options, TypedLobby.Default);
+
+        menuManager.ShowCircleLoading(true);
     }
 
     public override void OnJoinedLobby()
     {
-        Debug.Log("Joined to Lobby");
+        Debug.Log("Joined to Lobby : " + PhotonNetwork.CurrentLobby);
 
         MainMenuManager menuManager = GameObject.Find("MainMenuManager").GetComponent<MainMenuManager>().Instance;
         menuManager.TaskNetwork = true;
@@ -169,9 +153,11 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
         MatchMakingPage page = GameObject.Find("MenuCanvas").GetComponent<MatchMakingPage>();
         page.ActiveReconnectSreen(false);
+        menuManager.ShowCircleLoading(false);
     }
     public void JoinRoom(string roomName)
     {
+        menuManager.ShowCircleLoading(true);
         PhotonNetwork.JoinRoom(roomName);
         Debug.Log("Joining Room" + roomName);
     }
@@ -185,7 +171,7 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        roomPage.SetActive(false);
+        page.ShowScreen("roomScreen");
     }
     public override void OnCreatedRoom()
     {
@@ -196,25 +182,31 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         PlayerController playerController = PlayerController.GetInstance();
-        History history = (ScriptableObject.CreateInstance<History>());
+        History history = new History();
 
         if (PhotonNetwork.CurrentRoom.IsVisible)
         {
             history.MatchType = 1;
+            page.ShowPopUp("close");
         }
         else
         {
             history.MatchType = 0;
+            page.ShowPopUp("roomCodeScreen");
         }
 
         playerController.AddHistoy(history);
-        
+
+        page.ShowScreen("lobbyScreen");
+
         ShowLobby();
         UpdateStartButton();
 
         currentRoom = PhotonNetwork.CurrentRoom.Name;
         Destroy(roomGOList.Find(x => x.name == currentRoom));
         roomGOList.Remove(roomGOList.Find(x => x.name == currentRoom));
+
+        page.ActiveReconnectSreen(false);
         //LoadScene();
     }
 
@@ -229,22 +221,38 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("Another player left room");
         startButton.GetComponent<Button>().interactable = false;
-        enemyNameText.text = PhotonNetwork.CurrentLobby.ToString();
+        enemyNameText.text = ".....";
 
     }
-    public override void OnJoinRandomFailed(short returnCode, string message)
+
+    public override void OnJoinRoomFailed(short returnCode, string message)
     {
-        Debug.Log("Room tidak ditemukan, room akan dibuat");
-        //CreateRoom();
+        menuManager.ShowCircleLoading(false);
+        MatchMakingPage page = GameObject.Find("MenuCanvas").GetComponent<MatchMakingPage>();
+
+        switch (returnCode)
+        {
+            case ErrorCode.GameFull:
+                page.ShowErrorMessage("Room sudah full");
+                break;
+            case ErrorCode.GameDoesNotExist:
+                page.ShowErrorMessage("Room tidak ditemukan");
+                break;
+        }
     }
 
     public override void OnMasterClientSwitched(Player newMasterClient)
     {
-        LeaveLobby();
+        UpdateStartButton();
+        //LeaveLobby();
     }
+
     public override void OnCreateRoomFailed(short returnCode, string message)
     {
-        base.OnCreateRoomFailed(returnCode, message);
+        menuManager.ShowCircleLoading(false);
+        MatchMakingPage page = GameObject.Find("MenuCanvas").GetComponent<MatchMakingPage>();
+
+        page.ShowErrorMessage("Room Sudah Ada");
     }
 
     #region RooList
@@ -254,7 +262,6 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
         {
             if(roomGOList.Count == 1)
             {
-                Debug.Log("Jalan");
                 if(info.PlayerCount == 0)
                 {
                     Destroy(roomGOList[0]);
@@ -328,8 +335,18 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     #region Lobby
     private void ShowLobby()
     {
+        menuManager.ShowCircleLoading(false);
+
+        myNameText.text = ".....";
+        enemyNameText.text = ".....";
         roomPage.SetActive(true);
-        roomCode.text = "Room Code" + "\n" + PhotonNetwork.CurrentRoom.Name;
+        if (!PhotonNetwork.CurrentRoom.IsVisible)
+        {
+            roomCode.gameObject.SetActive(true);
+            roomCode.text = PhotonNetwork.CurrentRoom.Name;
+        }
+        else
+            roomCode.gameObject.SetActive(false);
 
         foreach (Player player in PhotonNetwork.PlayerList)
         {
@@ -356,12 +373,8 @@ public class MatchMakingManager : MonoBehaviourPunCallbacks
     public void LeaveLobby()
     {
         PhotonNetwork.LeaveRoom();
+        menuManager.ShowCircleLoading(true);
     }
 
     #endregion
-
-    public void OnSignOut()
-    {
-        GoogleSignIn.DefaultInstance.SignOut();
-    }
-}
+ }

@@ -4,6 +4,7 @@ using UnityEngine;
 using Firebase.Database;
 using Firebase.Auth;
 using Firebase.Extensions;
+using System.IO;
 
 public class PlayerController
 {
@@ -15,8 +16,17 @@ public class PlayerController
 
     private List<PlayerInfo> listPlayer;
 
+    HistoryList listHistory = new HistoryList();
 
-    
+    private const string SAVE_FILE_PLAYER = "user.sav";
+    private const string SAVE_FILE_HISTORY = "hist.sav";
+
+    private const string keyWord = "5527080";
+
+    public string CurrentUserId
+    {
+        get; set;
+    }
 
     public Statistic Statistic
     {
@@ -84,11 +94,32 @@ public class PlayerController
     {
         this.history = history;
     }
+    
+    public float GetWinRate(int matchResult)
+    {
+        if (Statistic == null)
+        {
+            Statistic = ScriptableObject.CreateInstance<Statistic>();
+            Statistic.Win = 0;
+            Statistic.Draw = 0;
+            Statistic.Lose = 0;
+        }
 
+        float totalWin = Statistic.Win;
+        if (matchResult == 1)
+            totalWin ++;
+
+        float totalMatch = Statistic.Win + Statistic.Lose;
+        if (matchResult != 0)
+            totalMatch ++;
+
+
+        Debug.Log("Calculate Win Rate : " + totalWin / totalMatch);
+        return totalWin / totalMatch;
+    }
 
     public void UpdateHistory(int matchResult, int battlePoint, string UserID)
     {
-        DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
 
         //Debug.Log("History : " + this.history.MatchType);
 
@@ -100,11 +131,31 @@ public class PlayerController
         Debug.Log("MT : " + this.history.MatchType);
 
         UpdateBattlePoint(battlePoint);
+        PlayerInfo.WinRate = GetWinRate(matchResult);
+        Debug.Log("Update Player Info : " + PlayerInfo.WinRate);
 
-        if (PlayerInfo.BattlePoint < 0)
-            PlayerInfo.BattlePoint = 0;
+        if (CheckGuestPlayer())
+        {
+            UpdateGuestPlayerInfo(PlayerInfo);
 
-        dbManager.UpdatePlayerInfo(UserID, playerInfo).ContinueWithOnMainThread(task =>
+            SaveListHistory(this.history);
+        }
+        else
+        {
+
+            UpdateUserData(UserID, PlayerInfo, this.history);
+        }
+        
+    }
+
+    public void UpdateUserData(string UserID, PlayerInfo pInfo, History history)
+    {
+        if (pInfo.BattlePoint < 0)
+            pInfo.BattlePoint = 0;
+
+        DatabaseManager dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
+
+        dbManager.UpdatePlayerInfo(UserID, pInfo).ContinueWithOnMainThread(task =>
         {
             if (task.IsCompleted)
             {
@@ -112,7 +163,7 @@ public class PlayerController
             }
         });
 
-        dbManager.AddHistory(history, UserID).ContinueWithOnMainThread(task =>
+        dbManager.AddHistory(history, -1, UserID).ContinueWithOnMainThread(task =>
         {
             if (task.IsCompleted)
             {
@@ -120,7 +171,6 @@ public class PlayerController
             }
         });
     }
-
 
     public List<PlayerInfo> UpdateLeaderboard(object sender, ChildChangedEventArgs args)
     {
@@ -145,10 +195,14 @@ public class PlayerController
 
     public PlayerInfo GetUser(DataSnapshot snapshot)
     {
+        if (snapshot == null)
+            return null;
+
         PlayerInfo pInfo = ScriptableObject.CreateInstance<PlayerInfo>();
 
         pInfo.Username = snapshot.Child("username").Value.ToString();
         pInfo.BattlePoint = int.Parse(snapshot.Child("battlePoint").Value.ToString());
+        pInfo.WinRate = float.Parse(snapshot.Child("winRate").Value.ToString());
 
         return pInfo;
 
@@ -156,32 +210,195 @@ public class PlayerController
 
     public Statistic GetStatistic(DataSnapshot snapshot)
     {
-        History history = ScriptableObject.CreateInstance<History>();
+        History history = new History();
 
         history.HistoryID = snapshot.Child("historyID").Value.ToString();
         history.MatchType = int.Parse(snapshot.Child("matchType").Value.ToString());
         history.MatchResult = int.Parse(snapshot.Child("matchResult").Value.ToString());
         history.BattlePoint = int.Parse(snapshot.Child("battlePoint").Value.ToString());
 
-        if (statistic == null)
-            statistic = ScriptableObject.CreateInstance<Statistic>();
+        if(this.statistic == null)
+            this.statistic = ScriptableObject.CreateInstance<Statistic>();
 
         switch (history.matchResult)
         {
             case 1:
-                statistic.Win++;
+                Statistic.Win++;
                 break;
             case 0:
-                statistic.Draw++;
+                Statistic.Draw++;
                 break;
             case -1:
-                statistic.Lose++;
+                Statistic.Lose++;
                 break;
         }
 
         return statistic;
     }
 
+    public Statistic GetGuestStatistic(List<History> historyList)
+    {
+        statistic = ScriptableObject.CreateInstance<Statistic>();
+
+        foreach(History his in historyList)
+        {
+            switch (his.matchResult)
+            {
+                case 1:
+                    statistic.Win++;
+                    break;
+                case 0:
+                    statistic.Draw++;
+                    break;
+                case -1:
+                    statistic.Lose++;
+                    break;
+            }
+        }
+
+        return statistic;
+    }
+
+    public void CreateGuestPlayerInfo()
+    {
+        PlayerInfo pInfo = ScriptableObject.CreateInstance<PlayerInfo>();
+
+        pInfo.Username = "Guest";
+        pInfo.BattlePoint = 0;
+        pInfo.WinRate = 1;
+
+        string json = EncryptDecrypt(JsonUtility.ToJson(pInfo));
+
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE_PLAYER);
+
+        if(!File.Exists(filename))
+            File.WriteAllText(filename, json);
+
+    }
+
+    public void UpdateGuestPlayerInfo(PlayerInfo pInfo)
+    {
+        if (pInfo.BattlePoint < 0)
+            pInfo.BattlePoint = 0;
+
+        string json = EncryptDecrypt(JsonUtility.ToJson(pInfo));
+
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE_PLAYER);
+
+        File.WriteAllText(filename, json);
+    }
+
+    public bool CheckGuestPlayer()
+    {
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE_PLAYER);
+
+        if (File.Exists(filename))
+            return true;
+
+        return false;
+    }
+
+    public void DeleteFileGuest()
+    {
+        string filenamePlayerInfo = Path.Combine(Application.persistentDataPath + SAVE_FILE_PLAYER);
+
+        string filenameHistory = Path.Combine(Application.persistentDataPath + SAVE_FILE_HISTORY);
+
+        File.Delete(filenamePlayerInfo);
+
+        File.Delete(filenameHistory);
+    }
+
+    public void AddGuestHistory()
+    {
+        string json = EncryptDecrypt(JsonUtility.ToJson(this.history));
+
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE_HISTORY);
+
+        File.AppendAllText(filename, json);
+    }
+
+    public PlayerInfo LoadGuestPlayerInfo()
+    {
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE_PLAYER);
+
+        if (File.Exists(filename))
+        {
+            string json = EncryptDecrypt(File.ReadAllText(filename));
+
+            PlayerInfo pInfo = ScriptableObject.CreateInstance<PlayerInfo>();
+
+            JsonUtility.FromJsonOverwrite(json, pInfo);
+
+            PlayerInfo = pInfo;
+
+            return pInfo;
+        }
+
+        return null;
+    }
+
+    public void SaveListHistory(History newHistory)
+    {
+        listHistory.histories = LoadGuestHistory();
+
+        if(listHistory.histories == null)
+        {
+            listHistory.histories = new List<History>();
+        }
+
+        listHistory.histories.Add(newHistory);
+
+        string json = EncryptDecrypt(JsonUtility.ToJson(listHistory));
+
+        Debug.Log("JSON : " + json);
+
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE_HISTORY);
+
+        File.WriteAllText(filename, json);
+    }
+
+    [System.Serializable]
+    public class HistoryList
+    {
+        public List<History> histories;
+    }
+
+
+    public List<History> LoadGuestHistory()
+    {
+        string filename = Path.Combine(Application.persistentDataPath + SAVE_FILE_HISTORY);
+
+
+        if (File.Exists(filename))
+        {
+            string json = EncryptDecrypt(File.ReadAllText(filename));
+
+            listHistory = JsonUtility.FromJson<HistoryList>(json);
+
+            return listHistory.histories;
+
+            /*foreach(History h in listHistory.histories)
+            {
+                Debug.Log("HistoryText : " + h.BattlePoint);
+            }*/
+
+        }
+
+        return null;
+    }
+
+    private string EncryptDecrypt(string data)
+    {
+        string result = "";
+
+        for(int i = 0; i < data.Length; i++)
+        {
+            result += (char) (data[i] ^ keyWord[i % keyWord.Length]);
+        }
+
+        return result;
+    }
     /*
     public void GetPlayerInfo()
     {

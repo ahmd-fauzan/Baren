@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class History : ScriptableObject
+public class History
 {
     public string historyID;
     public int battlePoint;
     public int matchResult;
     public int matchType;
 
+    public History() { }
     public History(string historyID, int battlePoint, int matchResult, int matchType)
     {
         this.historyID = historyID;

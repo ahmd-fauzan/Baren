@@ -24,8 +24,8 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     #endregion
 
-    [SerializeField]
-    private string manualUser;
+    //[SerializeField]
+    //private string manualUser;
 
     //Status -> Player1 atau Player2
     private string myStatus;
@@ -48,6 +48,8 @@ public class GameManager : MonoBehaviourPunCallbacks
     private const int LOSEROUND = 1;
     private const int WINROUND = 2;
     #endregion
+
+    private int gameStatus;
 
     public List<Character> CharacterSelected {
         get
@@ -98,6 +100,8 @@ public class GameManager : MonoBehaviourPunCallbacks
         //  Destroy(this.gameObject);
 
         myStatus = GetStatus();
+
+        gameStatus = 1;
     }
 
     public string GetStatus()
@@ -143,38 +147,37 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     public void MatchResult(int matchResult, bool isQuit = false)
     {
-        string userId;
-        if (FirebaseAuth.DefaultInstance.CurrentUser != null)
-            userId = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
-        else
-            userId = manualUser;
-
-        PlayerController playerController = PlayerController.GetInstance();
-
-        if (gamePage == null)
-            gamePage = GameObject.Find("GameUserInterface").GetComponent<GameUserIntefacePage>();
-
-        if (isQuit)
+        if(gameStatus == 1)
         {
-            playerController.UpdateHistory(-1, LOSEBATTLEPOINT, userId);
-            return;
-        }
+            PlayerController pController = PlayerController.GetInstance();
 
-        switch (matchResult)
-        {
-            case WINMATCH:
-                playerController.UpdateHistory(1, WINBATTLEPOINT, userId);
-                gamePage.WinMessage(WINBATTLEPOINT);
-                break;
-            case DRAWMATCH:
-                playerController.UpdateHistory(0, DRAWBATTLEPOINT, userId);
-                gamePage.DrawMessage(DRAWBATTLEPOINT);
-                break;
-            case LOSEMATCH:
-                playerController.UpdateHistory(-1, LOSEBATTLEPOINT, userId);
-                gamePage.LoseMessage(LOSEBATTLEPOINT);
-                break;
+            if (gamePage == null)
+                gamePage = GameObject.Find("GameUserInterface").GetComponent<GameUserIntefacePage>();
+
+            if (isQuit)
+            {
+                pController.UpdateHistory(-1, LOSEBATTLEPOINT, pController.CurrentUserId);
+                return;
+            }
+
+            switch (matchResult)
+            {
+                case WINMATCH:
+                    pController.UpdateHistory(1, WINBATTLEPOINT, pController.CurrentUserId);
+                    gamePage.WinMessage(WINBATTLEPOINT);
+                    break;
+                case DRAWMATCH:
+                    pController.UpdateHistory(0, DRAWBATTLEPOINT, pController.CurrentUserId);
+                    gamePage.DrawMessage(DRAWBATTLEPOINT);
+                    break;
+                case LOSEMATCH:
+                    pController.UpdateHistory(-1, LOSEBATTLEPOINT, pController.CurrentUserId);
+                    gamePage.LoseMessage(LOSEBATTLEPOINT);
+                    break;
+            }
+            gameStatus = 0;
         }
+        
     }
 
     void SaveTempState()
@@ -231,13 +234,27 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         if (listRoundResult == null)
             return false;
-        if (listRoundResult.Count >= 5)
+
+        if (CountScore(2) == 3 || CountScore(1) == 3 || listRoundResult.Count >= 5)
             return true;
+
         return false;
     }
 
     #endregion
 
+    private int CountScore(int roundResult)
+    {
+        int score = 0;
+
+        foreach(int result in listRoundResult)
+        {
+            if (result == roundResult)
+                score++;
+        }
+
+        return score;
+    }
     #region Load Scene
     public IEnumerator LoadScene(string sceneName, GameObject loadingUI, Text loadingText, Slider loadingSlider)
     {
@@ -246,7 +263,7 @@ public class GameManager : MonoBehaviourPunCallbacks
         PhotonNetwork.LoadLevel(sceneName);
         int titik = 1;
         string text = "Loading.";
-        while (PhotonNetwork.LevelLoadingProgress < 1)
+        while (PhotonNetwork.LevelLoadingProgress <= 1)
         {
             if (titik <= 3)
             {
@@ -265,6 +282,7 @@ public class GameManager : MonoBehaviourPunCallbacks
 
             yield return new WaitForEndOfFrame();
         }
+        loadingUI.SetActive(false);
     }
     #endregion
 
@@ -283,22 +301,38 @@ public class GameManager : MonoBehaviourPunCallbacks
             // Check if the name of the current Active Scene is your first Scene.
             if (scene.name == "DraftPick")
                 BackToMenu();
+
             if (scene.name == "Match")
             {
-                RoundManager roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>();
+                RoundManager roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>().Instance;
 
                 roundManager.ActiveReconnectSreen(true);
 
-                PhotonNetwork.Reconnect();
+                PhotonNetwork.ReconnectAndRejoin();
             }
-
         }
+    }
+
+    public override void OnJoinedRoom()
+    {
+        Debug.Log("Joined again to room");
+
+        Scene scene = SceneManager.GetActiveScene();
+        if (scene.name != "Match")
+            return;
+
+        RoundManager roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>().Instance;
+
+        roundManager.ActiveReconnectSreen(false);
+
+        //MatchResult(LOSEMATCH);
     }
 
     public override void OnConnected()
     {
         
     }
+
     public override void OnConnectedToMaster()
     {
         Debug.Log("Connected to master");
@@ -310,16 +344,10 @@ public class GameManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("JOined to Lobby");
 
-        Scene scene = SceneManager.GetActiveScene();
-        if (scene.name != "Match")
-            return;
-
-        RoundManager roundManager = GameObject.Find("RoundManager").GetComponent<RoundManager>().Instance;
-
-        roundManager.ActiveReconnectSreen(false);
-
-        MatchResult(LOSEMATCH);
+       
     }
+
+
 
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
@@ -328,8 +356,8 @@ public class GameManager : MonoBehaviourPunCallbacks
         if(scene.name == "DraftPick")
             BackToMenu();
 
-        if(scene.name == "Match")
-            MatchResult(1);
+        //if(scene.name == "Match")
+            //MatchResult(1);
     }
 
     public void BackToMenu()

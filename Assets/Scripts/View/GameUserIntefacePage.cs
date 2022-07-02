@@ -41,6 +41,9 @@ public class GameUserIntefacePage : MonoBehaviour
     [SerializeField]
     GameObject cardSelectionUI;
 
+    [SerializeField]
+    GameObject selectionIcon;
+
     private string playerType;
     public string PlayerType 
     { 
@@ -62,7 +65,7 @@ public class GameUserIntefacePage : MonoBehaviour
     {
         if (roundResult == 2)
             playerScoreText.text = (int.Parse(playerScoreText.text) + 1).ToString();
-        else
+        else if(roundResult == 1)
             enemyScoreText.text = (int.Parse(enemyScoreText.text) + 1).ToString();
     }
 
@@ -101,5 +104,16 @@ public class GameUserIntefacePage : MonoBehaviour
     public void HideCardSelection()
     {
         cardSelectionUI.SetActive(!cardSelectionUI.activeInHierarchy);
+    }
+
+    public void UpdateSelectionIcon()
+    {
+        RectTransform rect = selectionIcon.GetComponent<RectTransform>();
+
+        Vector3 scale = rect.localScale;
+
+        scale.x = -scale.x;
+
+        rect.localScale = scale;
     }
 }

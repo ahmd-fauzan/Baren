@@ -27,23 +27,20 @@ public class LeaderboardPage : MonoBehaviour
 
     public void UpdateLeaderboard(List<PlayerInfo> leaderboardList)
     {
-        int placePos = 0;
         foreach (GameObject go in leaderboardItemList)
         {
             Destroy(go);
         }
 
-        foreach (PlayerInfo pInfo in leaderboardList)
+        
+
+        for(int i = 0; i < 10  && i < leaderboardList.Count; i++)
         {
-            Debug.Log("Leaderboard : " + pInfo.Username);
-
-            placePos++;
-
             GameObject leaderboardGo = Instantiate(leaderboardItem, leaderboardSpawn);
 
             leaderboardItemList.Add(leaderboardGo);
 
-            switch (placePos)
+            switch (i + 1)
             {
                 case 1:
                     leaderboardGo.transform.GetChild(0).GetComponent<Image>().color = stPlaceColor;
@@ -59,14 +56,9 @@ public class LeaderboardPage : MonoBehaviour
                     break;
             }
 
-            leaderboardGo.transform.GetChild(0).GetChild(0).GetComponent<Text>().text = placePos.ToString();
-            leaderboardGo.transform.GetChild(1).GetComponent<Text>().text = pInfo.Username;
-            leaderboardGo.transform.GetChild(2).GetChild(0).GetComponent<Text>().text = pInfo.BattlePoint.ToString();
-
-            if (placePos == 11)
-            {
-                return;
-            }
+            leaderboardGo.transform.GetChild(0).GetChild(0).GetComponent<Text>().text = (i + 1).ToString();
+            leaderboardGo.transform.GetChild(1).GetComponent<Text>().text = leaderboardList[i].Username;
+            leaderboardGo.transform.GetChild(2).GetChild(0).GetComponent<Text>().text = leaderboardList[i].BattlePoint.ToString();
         }
     }
 }

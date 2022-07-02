@@ -22,6 +22,21 @@ public class MatchMakingPage : MonoBehaviour
     private GameObject reconnectScreen;
 
     [SerializeField]
+    private GameObject serverFullScreen;
+
+    [SerializeField]
+    private MatchMakingManager matchManager;
+
+    [SerializeField]
+    private GameObject roomScreen;
+
+    [SerializeField]
+    private GameObject roomCodeScreen;
+
+    [SerializeField]
+    private GameObject lobbyScreen;
+
+    [SerializeField]
     Text KoderoomValidTXT;
 
     private const int PUBLICMATCH = 1;
@@ -39,13 +54,23 @@ public class MatchMakingPage : MonoBehaviour
 
         PlayerInfo pInfo = pController.PlayerInfo;
 
+        var regexItem = new Regex("^[0-9 ]*$");
+
+        
         if (privateToggle.isOn)
         {
-            MatchMakingManager.CreateRoom(roomCodeIF.GetComponent<InputField>().text, PRIVATEMATCH);
+            if (regexItem.IsMatch(roomCodeIF.GetComponent<InputField>().text) && roomCodeIF.GetComponent<InputField>().text.Length == 6)
+            {
+                matchManager.CreateRoom(roomCodeIF.GetComponent<InputField>().text, PRIVATEMATCH);
+            }
+            else
+            {
+                ShowErrorMessage("Kode Room Tidak Valid");
+            }
         }
         else
         {
-            MatchMakingManager.CreateRoom(pInfo.Username + "#" + pInfo.BattlePoint, PUBLICMATCH);
+            matchManager.CreateRoom(pInfo.Username + "#" + pInfo.BattlePoint, PUBLICMATCH);
         }
     }
 
@@ -55,19 +80,14 @@ public class MatchMakingPage : MonoBehaviour
 
         if (regexItem.IsMatch(roomNameIF.text) && roomNameIF.text.Length == 6)
         {
-            Debug.Log("kode room sesuai");
-            MatchMakingManager manager = GameObject.Find("MatchManager").GetComponent<MatchMakingManager>().GetInstance();
-            manager.JoinRoom(roomNameIF.text);
+            matchManager.JoinRoom(roomNameIF.text);
         }
 
         else
         {
             Debug.Log("Kode room tidak sesuai");
-            KoderoomValidTXT.gameObject.SetActive(true);
-
+            ShowErrorMessage("Kode Room Tidak Valid");
         }
-
- 
     }
 
     public void SetPrivateToggle()
@@ -78,5 +98,41 @@ public class MatchMakingPage : MonoBehaviour
     public void ActiveReconnectSreen(bool isActive)
     {
         reconnectScreen.SetActive(isActive);
+    }
+
+    public void ShowErrorMessage(string message)
+    {
+        StartCoroutine(ShowMessageError());
+        KoderoomValidTXT.text = message;
+    }
+
+    IEnumerator ShowMessageError()
+    {
+        KoderoomValidTXT.gameObject.SetActive(true);
+
+        float counter = 4f;
+        while(counter > 0)
+        {
+            yield return new WaitForSeconds(1f);
+
+            counter--;
+        }
+        KoderoomValidTXT.gameObject.SetActive(false);
+    }
+
+    public void ShowServerFullScreen()
+    {
+        serverFullScreen.SetActive(true);
+    }
+
+    public void ShowScreen(string screenName)
+    {
+        roomScreen.SetActive(screenName == "roomScreen");
+        lobbyScreen.SetActive(screenName == "lobbyScreen");
+    }
+
+    public void ShowPopUp(string popUpName)
+    {
+        roomCodeScreen.SetActive(popUpName == "roomCodeScreen");
     }
 }

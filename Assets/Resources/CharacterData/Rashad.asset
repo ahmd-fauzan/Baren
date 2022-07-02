@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db88b6198dfeba645b9c3984ce271998, type: 3}
+  m_Name: Rashad
+  m_EditorClassIdentifier: 
+  characterId: CH10
+  characterName: Rashad
+  characterImage: {fileID: 4265969801652332166, guid: 203ce90d629489647b8cea0e703309af,
+    type: 3}
+  characterPrefab: {fileID: 1811332592989530003, guid: e7117a980192df143b754906969536ca,
+    type: 3}
+  walkSpeed: 0.6
+  runSpeed: 2.7
+  acceleration: 7
+  stamina: 30
+  staminaRegen: 3
+  cost: 30

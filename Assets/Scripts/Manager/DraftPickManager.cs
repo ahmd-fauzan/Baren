@@ -39,7 +39,11 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
 
     List<GameObject> cardAvailable;
 
+    [SerializeField]
     List<Character> selectedCharacter;
+
+    [SerializeField]
+    List<Character> enemySelected;
 
     private string myStatus;
 
@@ -86,9 +90,11 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
             myStatus = "Player2";
         }
 
-
         if (selectedCharacter == null)
             selectedCharacter = new List<Character>();
+
+        if (enemySelected == null)
+            enemySelected = new List<Character>();
 
         SpawnDraftCharacter();
         StartTimer();
@@ -113,7 +119,7 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
                 return;
             }
 
-            if(selectedCharacter.Count < 3)
+            if(gameManager.CharacterSelected.Count < 3)
                 RandomCharacter();
             else
                 draftFinishedEvent();
@@ -298,17 +304,16 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
         Character[] characters = controller.GetCharacterList();
         List<int> numbers = new List<int>();
 
-        while (selectedCharacter.Count < 3)
+        while (gameManager.CharacterSelected.Count < 3)
         {
             int index = NewNumber(numbers, characters.Length);
 
-            if (!IsCharacterSelected(characters[index]))
+            if (!IsCharacterSelected(selectedCharacter, characters[index].characterId) && !IsCharacterSelected(enemySelected, characters[index].characterId))
             {
                 if (costPoint > characters[index].cost)
                 {
                     AddCharacter(characters[index]);
                 }
-
             }
         }
 
@@ -335,11 +340,11 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
         return a;
     }
 
-    private bool IsCharacterSelected(Character character)
+    private bool IsCharacterSelected(List<Character> list, string characterId)
     {
-        foreach (Character c in selectedCharacter)
+        foreach (Character c in list)
         {
-            if (character.characterId == c.characterId)
+            if (characterId == c.characterId)
                 return true;
         }
 
@@ -359,7 +364,7 @@ public class DraftPickManager : MonoBehaviourPunCallbacks
             if (parent.GetChild(i).name == "Img" + characterId + "(Clone)")
             {
                 UpdateCardImage(parent.GetChild(i).gameObject, null, playerType);
-                //selectedCharacter.Add(controller.GetCharacterById(characterId));
+                enemySelected.Add(controller.GetCharacterById(characterId));
                 break;
             }
         }

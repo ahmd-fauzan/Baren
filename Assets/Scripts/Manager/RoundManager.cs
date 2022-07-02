@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System.IO;
 using UnityEngine.SceneManagement;
+using UnityEngine.AI;
 
 public class RoundManager : MonoBehaviourPunCallbacks
 {
@@ -32,6 +33,11 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     [SerializeField]
     Transform characterSelected;
+
+    [SerializeField]
+    Transform targetMoving;
+
+    private int targetTouchCount;
 
     [SerializeField]
     GameObject[][] mySpawnPoint;
@@ -84,6 +90,8 @@ public class RoundManager : MonoBehaviourPunCallbacks
     [SerializeField]
     GameObject CloseSurrendUI;
 
+    private bool canRequestDraw;
+
     /*//GRID SYSTEM VARIABLE
     Vector3 cursorPosition;
 
@@ -123,8 +131,6 @@ public class RoundManager : MonoBehaviourPunCallbacks
     [SerializeField]
     private List<GameObject> enemyCharacter;
 
-    private bool ready;
-
     bool startTimer = false;
     double timerIncrementValue;
     double startTime;
@@ -133,7 +139,14 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     public delegate void CharacterInstantiatedDelegate();
     public event CharacterInstantiatedDelegate CharacterInstantiatedEvent;
-    
+
+    private const int PLAYING = 1;
+    private const int STOPING = 0;
+    private const int PAUSING = -1;
+
+    [SerializeField]
+    private int gameState  = 0;
+
     public class BaseLocation
     {
         public Vector3 Location { get; set; }
@@ -164,6 +177,12 @@ public class RoundManager : MonoBehaviourPunCallbacks
         }
     }
 
+    public int CountEnemyPrisoner
+    {
+        get { return countEnemyPrisoner; }
+        set { countEnemyPrisoner = value; }
+    }
+
     private void Awake()
     {
         view = GetComponent<PhotonView>();
@@ -175,13 +194,13 @@ public class RoundManager : MonoBehaviourPunCallbacks
         currentCamera = GameObject.Find("CameraManager").GetComponent<CameraManager>().GetCamera(gameManager.GetStatus());
 
         currentValue = 0;
+
+        gameState = STOPING;
     }
 
     private void Start()
     {
         CharacterInstantiatedEvent += OnCharacterInstantiated;
-
-        ready = false;
 
         firstClickTime = 0f;
         timeBetweenClicks = 0.2f;
@@ -193,31 +212,50 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     // Update is called once per frame
     void Update()
-    { 
+    {
         //Touch touch = Input.GetTouch(0);
+        GameObject[] go = GameObject.FindGameObjectsWithTag("Character");
+
+        foreach(GameObject enemyGo in go)
+        {
+            if (!enemyGo.GetComponent<PhotonView>().IsMine && enemyCharacter.Count <= gameManager.CountEnemyCharacter)
+                AddEnemyCharacter(enemyGo);
+        }
+
+        enemyCharacter.RemoveAll(x => x == null);
 
         if (Input.GetMouseButtonUp(0))//touch.phase == TouchPhase.Began)
         {
-            clickCounter += 1;
+            if (gameState != PLAYING)
+                return;
 
             Ray ray = currentCamera.ScreenPointToRay(Input.mousePosition);//Input.GetTouch(0).position);
 
             TouchCharacter(ray);
 
-            if (clickCounter == 1 && coroutineAllowed)
+            if(characterSelected != null)
             {
-                firstClickTime = Time.time;
-                StartCoroutine(DoubleClickDetection(ray));
+                Debug.Log("CoroutineAllowed : " + coroutineAllowed);
+                Debug.Log("Click Counter : " + clickCounter);
+
+                clickCounter += 1;
+
+                if (clickCounter == 1 && coroutineAllowed)
+                {
+                    firstClickTime = Time.time;
+                    StartCoroutine(DoubleClickDetection(ray));
+                }
             }
         }
 
 
         //Tidak bisa select karakter tawanan
+        /*
         if (characterSelected != null)
         {
             if (characterSelected.GetComponent<CharacterMovement>().Value == -1)
                 characterSelected = null;
-        }
+        }*/
 
         if (!startTimer) return;
 
@@ -230,8 +268,25 @@ public class RoundManager : MonoBehaviourPunCallbacks
             //Timer Completed
             startTimer = false;
 
-            view.RPC("StorePrisoner", RpcTarget.Others, countMyPrisoner);
+            CalculateResult();
         }
+
+        if (clickCounter > 2)
+            clickCounter = 0;
+
+        if(targetMoving != null && characterSelected != null)
+        {
+            if(!targetMoving.gameObject.GetComponent<NavMeshAgent>().isStopped)
+            {
+                view.RPC("MoveCharacterRPC", RpcTarget.All, characterSelected.GetComponent<CharacterMovement>().GetInstance().GetCharacter().characterId, gameManager.GetStatus(), targetTouchCount, targetMoving.position);
+            }
+
+            if (targetMoving.GetComponent<CharacterMovement>().GetInstance().Value == -1)
+                targetMoving = null;
+        }
+
+        if (characterSelected == null)
+            targetMoving = null;
     }
 
     /*private void LateUpdate()
@@ -285,12 +340,8 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     public void OnCharacterInstantiated()
     {
-        if (ready)
-        {
-            loadingUI.SetActive(false);
-            ready = false;
-            PlayRound();
-        }
+        loadingUI  .SetActive(false);
+        PlayRound();
     }
 
     private void Instantiate()
@@ -307,8 +358,6 @@ public class RoundManager : MonoBehaviourPunCallbacks
                     SpawnCharacter(character, GetSpawnLocation(spawnPoint2, gameManager.CharacterSelected.Count, spawnIndex), spawnPoint2.rotation);
                 spawnIndex++;
             }
-
-            view.RPC("SetReady", RpcTarget.Others);
 
             CharacterInstantiatedEvent();
         }
@@ -367,10 +416,13 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     
 
-    private void DestroyMarkMarker()
+    public void DestroyMarkMarker()
     {
-        if(markObject != null)
+        if (markObject != null)
+        {
             Destroy(markObject, .5f);
+            markObject = null;
+        }
     }
     public int AddValue()
     {
@@ -437,14 +489,22 @@ public class RoundManager : MonoBehaviourPunCallbacks
             if (!b.Filled && charMove.Value == -1)
             {
                 charMove.Status = 1;
-                view.RPC("MoveCharacterRPC", RpcTarget.All, charMove.GetCharacter().characterId, gameManager.GetStatus(), WALK, b.Location);
+                view.RPC("MoveCharacterRPC", RpcTarget.All, charMove.GetCharacter().characterId, gameManager.GetStatus(), RUN, b.Location);
             }
             countMyPrisoner = 0;
+            view.RPC("UpdateEnemyPrisoner", RpcTarget.Others);
         }
     }
 
     public void SetcharacterSelected(Transform selected)
     {
+        if (gameState != PLAYING)
+            return;
+
+        CharacterMovement character = selected.GetComponent<CharacterMovement>().GetInstance();
+
+        if (character.Value == -1)
+            return;
 
         if (characterSelected == null)
         {
@@ -490,16 +550,35 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     IEnumerator Delay(float delayTime)
     {
-        yield return new WaitForSeconds(delayTime);
+        roundResultUI.SetActive(true);
+
+        float counter = delayTime;
+        while(counter > 0)
+        {
+            yield return new WaitForSeconds(1f);
+            counter--;
+        }
+
+        roundResultUI.SetActive(false);
+
+        DestroyMarkMarker();
+
+        if (!gameManager.IsGameFinished())
+            DestroyCharacter();
+        else
+            gameManager.CalculateMatchResult();
     }
 
     private void PlayRound()
     {
-        StartCoroutine(Delay(3f));
+        canRequestDraw = true;
 
-        roundResultUI.SetActive(false);
+        gameState = PLAYING;
 
         StartTimer();
+
+        countEnemyPrisoner = 0;
+        countMyPrisoner = 0;
     }
 
     /*
@@ -546,10 +625,11 @@ public class RoundManager : MonoBehaviourPunCallbacks
             Destroy(b.Card);
         }
 
-        bases = new List<BaseLocation>();
+        bases = new List<BaseLocation>(); ;
+
         characterSelected = null;
 
-        enemyCharacter = null;
+        enemyCharacter = new List<GameObject>();
 
         Instantiate();
     }
@@ -566,24 +646,29 @@ public class RoundManager : MonoBehaviourPunCallbacks
         }
     }
 
+    private void StopTimer()
+    {
+        startTimer = false;
+    }
+
     public void RoundEnded(int roundResult)
     {
-        roundResultUI.SetActive(true);
+        gameState = STOPING;
+
+        StopTimer();
+
+        StartCoroutine(Delay(3f));
+
         startTimer = false;
 
         if (roundResult == WINROUND)
-            roundResultText.text = "Win Round";
+            roundResultText.text = "Menang";
         else if (roundResult == LOSEROUND)
-            roundResultText.text = "Lose Round";
+            roundResultText.text = "Kalah";
         else
-            roundResultText.text = "Draw Round";
+            roundResultText.text = "Seri";
 
         gameManager.UpdateScore(roundResult);
-
-        if (!gameManager.IsGameFinished())
-            DestroyCharacter();
-        else
-            gameManager.CalculateMatchResult();
     }
 
     /*
@@ -638,22 +723,6 @@ public class RoundManager : MonoBehaviourPunCallbacks
     {
         GameObject go = SpawnManager.PhotonSpawn(character, spawnPoint, rotation, myCharacterParent);
 
-        CharacterMovement characterMovement = go.GetComponent<CharacterMovement>();
-
-        GameObject cardGo = SpawnManager.SpawnCard(character, characterSelection.GetComponent<Transform>(), true);
-
-        Slider slider = cardGo.GetComponent<Transform>().GetChild(2).GetComponent<Slider>();
-
-        slider.maxValue = character.stamina;
-
-        characterMovement.SetCharacter(character, slider);
-
-        if (bases == null)
-            bases = new List<BaseLocation>();
-
-        bases.Add(new BaseLocation(spawnPoint, go.transform, cardGo, true));
-
-
         return go;
     }
 
@@ -670,6 +739,8 @@ public class RoundManager : MonoBehaviourPunCallbacks
         float dist = 0.75f * countMyPrisoner;
 
         countMyPrisoner++;
+
+        characterSelected = null;
 
         if(gameManager.GetStatus() == "Player1")
             return new Vector3(prisonerLocation2.position.x, prisonerLocation2.position.y, prisonerLocation2.position.z - dist);
@@ -702,18 +773,41 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
         if (Physics.Raycast(ray, out hit, Mathf.Infinity))
         {
-            if (hit.collider.CompareTag("Ground") && !hit.collider.CompareTag("Character") && characterSelected != null)
+            if ((hit.collider.CompareTag("Ground") || hit.collider.CompareTag("PlayerFlag") || hit.collider.CompareTag("EnemyFlag"))/* && !hit.collider.CompareTag("Character") */&& characterSelected != null)
             {
-                if (characterSelected == null)
-                    return;
 
-                DestroyMarkMarker();
+                if (markObject != null)
+                    DestroyMarkMarker();
 
                 CharacterMovement characterMovement = characterSelected.GetComponent<CharacterMovement>().GetInstance();
-                //characterMovement.Move(SpawnMarkLocation(hit.point), touchCount);
 
-                view.RPC("MoveCharacterRPC", RpcTarget.All, characterMovement.GetCharacter().characterId, gameManager.GetStatus(), touchCount, hit.point);
+                if (characterMovement == null)
+                {
+                    Debug.Log("Character Movement NULL");
+                    return;
+                }
+
+                targetMoving = null;
+
+                view.RPC("MoveCharacterRPC", RpcTarget.All, characterMovement.GetCharacter().characterId, gameManager.GetStatus(), touchCount, SpawnMarkLocation(hit.point).position);
                 //StartCharacterTimer();
+            }
+
+            if (hit.collider.CompareTag("Character") && characterSelected != null)
+            {
+                if ((!hit.collider.GetComponent<PhotonView>().IsMine && hit.collider.GetComponent<CharacterMovement>().Value != -1) || (hit.collider.GetComponent<PhotonView>().IsMine && hit.collider.GetComponent<CharacterMovement>().Value == -1))
+                {
+                    if (markObject != null)
+                        DestroyMarkMarker();
+
+                    CharacterMovement characterMovement = characterSelected.GetComponent<CharacterMovement>().GetInstance();
+
+                    targetTouchCount = touchCount;
+                    targetMoving = hit.transform;
+                    SpawnMarkLocation(hit.point).SetParent(targetMoving);
+
+                    view.RPC("MoveCharacterRPC", RpcTarget.All, characterMovement.GetCharacter().characterId, gameManager.GetStatus(), touchCount, targetMoving.position);
+                }
             }
         }
 
@@ -729,15 +823,34 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
             if(hit.collider != null)
             {
-                if (hit.collider.CompareTag("Character"))
+                if (hit.collider.CompareTag("Character") && hit.collider.GetComponent<PhotonView>().IsMine && hit.collider.GetComponent<CharacterMovement>().GetInstance().Value != -1)
                 {
+                    Debug.Log("Hit Character");
+
+                    Character character = hit.collider.GetComponent<CharacterMovement>().GetCharacter();
+
+                    targetMoving = null;
+
+                    UpdateSelectedCard(character.characterId);
+
                     SetcharacterSelected(hit.transform);
                 }
             }
-            
         }
     }
     #endregion
+
+    private void UpdateSelectedCard(string characterId)
+    {
+        GameObject.Find("Img" + characterId + "(Clone)").GetComponent<Button>().Select();
+    }
+
+    private Transform SpawnMarkLocation(Vector3 location)
+    {
+        markObject = SpawnManager.LocalSpawn(markLocation, location);
+
+        return markObject.transform;
+    }
 
     private bool IsInBase(Transform character)
     {
@@ -781,7 +894,6 @@ public class RoundManager : MonoBehaviourPunCallbacks
         characterMovement.StopOutline();
     }
 
-
     public void GetGreenIdOutline(int value, bool active)
     {
 
@@ -811,6 +923,8 @@ public class RoundManager : MonoBehaviourPunCallbacks
                     else
                         StopOutline(go.transform);
                 }
+                else if (character.Value == -1)
+                    StopOutline(go.transform);
                     
             }
         }
@@ -876,20 +990,6 @@ public class RoundManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    public void StorePrisoner(int countPrisoner)
-    {
-        countEnemyPrisoner = countPrisoner;
-        CalculateResult();
-    }
-
-    [PunRPC]
-    public void SetReady()
-    {
-        ready = !ready;
-        CharacterInstantiatedEvent();
-    }
-
-    [PunRPC]
     public void MoveCharacterRPC(string characterId, string status, int touchCount, Vector3 position)
     {
         MoveCharacter(position, touchCount, characterId, status);
@@ -898,6 +998,8 @@ public class RoundManager : MonoBehaviourPunCallbacks
     [PunRPC]
     public void RequestDraw()
     {
+        gameState = PAUSING;
+
         requestDrawUI.SetActive(true);
         StartCoroutine(ShowDrawTimer(10));
     }
@@ -905,8 +1007,16 @@ public class RoundManager : MonoBehaviourPunCallbacks
     [PunRPC]
     public void DrawMatch()
     {
+        gameState = PAUSING;
+
         optionUi.SetActive(false);
         gameManager.MatchResult(DRAWMATCH);
+    }
+    
+    [PunRPC]
+    public void UpdateEnemyPrisoner()
+    {
+        countEnemyPrisoner = 0;
     }
 
     #endregion
@@ -925,11 +1035,6 @@ public class RoundManager : MonoBehaviourPunCallbacks
         gameManager.BackToMenu();
     }
 
-    public void Option()
-    {
-        optionUi.SetActive(true);
-    }
-
     public void ConfirmSurrend()
     {
         optionUi.SetActive(false);
@@ -940,17 +1045,26 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     public void SelectSurrend()
     {
+        gameState = PAUSING;
+
         requestSurrendUi.SetActive(true);
     }
 
     public void CancelSurrend()
     {
+        gameState = PLAYING;
+
         requestSurrendUi.SetActive(false);
     }
 
     public void SelectDraw()
     {
-        view.RPC("RequestDraw", RpcTarget.Others);
+        if (canRequestDraw)
+        {
+            view.RPC("RequestDraw", RpcTarget.Others);
+            canRequestDraw = false;
+            CloseOption();
+        }
     }
 
     public void ConfirmDraw()
@@ -961,44 +1075,99 @@ public class RoundManager : MonoBehaviourPunCallbacks
 
     public void RefuseDraw()
     {
+        gameState = PLAYING;
+
         requestDrawUI.SetActive(false);
     }
 
     public void CloseOption()
     {
+        gameState = PLAYING;
+
         optionUi.SetActive(false);
     }
 
     public void ActiveReconnectSreen(bool isActive)
     {
+        gameState = PAUSING;
+
         reconnectScreen.SetActive(isActive);
     }
     #endregion
 
     public void ShowDrawRequest()
     {
+        gameState = PAUSING;
+
         DrawRequest.SetActive(true);
         optionUi.SetActive(false);
     }
 
     public void ShowSurrendConfirm()
     {
+        gameState = PAUSING;
+
         SurrendConfirm.SetActive(true);
         optionUi.SetActive(false);
     }
 
     public void CloseOptionUI()
     {
+        gameState = PLAYING;
+
         optionUi.SetActive(false);
     }
 
     public void ShowOption()
     {
+        gameState = PAUSING;
+
         optionUi.SetActive(true);
     }
 
     public void CloseSurrendConfirm()
     {
+        gameState = PLAYING;
+
         SurrendConfirm.SetActive(false);
+    }
+
+    public void AddCharacterAgain(CharacterMovement charMove)
+    {
+        if(bases != null)
+        {
+            if(bases.Count >= gameManager.CharacterSelected.Count)
+            {
+                //DestroyCharacter();
+                bases.Clear();
+                bases = null;
+            }
+        }
+
+        foreach(Character c in gameManager.CharacterSelected)
+        {
+            if (charMove.GetComponent<Transform>().name.Contains(c.characterId))
+            {
+                GameObject cardGo = SpawnManager.SpawnCard(c, characterSelection.GetComponent<Transform>(), true);
+
+                Slider slider = cardGo.GetComponent<Transform>().GetChild(2).GetComponent<Slider>();
+
+                slider.maxValue = c.stamina;
+
+                charMove.SetCharacter(c, slider);
+
+                if (bases == null)
+                    bases = new List<BaseLocation>();
+
+                bases.Add(new BaseLocation(GetSpawnLocation(charMove.GetComponent<Transform>(), gameManager.CharacterSelected.Count, bases.Count),charMove.GetComponent<Transform>(), cardGo, true));
+
+                AddEvent(cardGo, charMove.GetComponent<Transform>());
+
+                break;
+            }
+        }
+
+
+        
     }
 }

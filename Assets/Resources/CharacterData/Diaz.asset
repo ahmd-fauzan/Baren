@@ -18,9 +18,9 @@ MonoBehaviour:
     type: 3}
   characterPrefab: {fileID: 3058098763687745039, guid: ebe51afe54760f142a619913f2b62e2d,
     type: 3}
-  walkSpeed: 1
-  runSpeed: 3
-  acceleration: 8
-  stamina: 30
+  walkSpeed: 0.4
+  runSpeed: 2.2
+  acceleration: 6
+  stamina: 24
   staminaRegen: 2
-  cost: 10
+  cost: 20

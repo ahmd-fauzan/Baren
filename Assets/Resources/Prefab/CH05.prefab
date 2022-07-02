@@ -1324,6 +1324,7 @@ MonoBehaviour:
   IsRotating: 0
   RotationSpeed: 100
   status: 0
+  currStamina: 0
 --- !u!114 &3724587195415656152
 MonoBehaviour:
   m_ObjectHideFlags: 0

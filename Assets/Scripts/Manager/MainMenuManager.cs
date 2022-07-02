@@ -10,15 +10,17 @@ using System.Threading.Tasks;
 using Firebase.Auth;
 using UnityEngine.SceneManagement;
 using System.IO;
+using Google;
+using Photon.Pun;
 
 public class MainMenuManager : MonoBehaviour
 {
     //Current Player ID
-    private string userID;
+    //private string userID;
 
     //Current Player ID in Unity Editor
-    [SerializeField]
-    string manualUser;
+    //[SerializeField]
+    //string manualUser;
 
     #region ScriptPage
     [SerializeField]
@@ -30,6 +32,9 @@ public class MainMenuManager : MonoBehaviour
     [SerializeField]
     private ProfilePage profilePage;
     #endregion
+
+    [SerializeField]
+    private MatchMakingManager matchManager;
 
     #region GameObject Content
     [SerializeField]
@@ -43,11 +48,29 @@ public class MainMenuManager : MonoBehaviour
 
     [SerializeField]
     private GameObject profileMenu;
+
+    [SerializeField]
+    private GameObject helpMenu;
+
+    [SerializeField]
+    private GameObject pengenalanMenu;
+
+    [SerializeField]
+    private GameObject mapMenu;
     #endregion
 
     //Screen Loading
     [SerializeField]
     private GameObject loadingScreen;
+
+    [SerializeField]
+    private GameObject circleLoadingScreen;
+
+    [SerializeField]
+    private Image circleLoading;
+
+    [SerializeField]
+    AudioSource audioSource;
 
     #region Event
     public bool taskLeaderboard;
@@ -87,24 +110,65 @@ public class MainMenuManager : MonoBehaviour
     private void Awake()
     {
         Input.backButtonLeavesApp = true;
+
+        pController = PlayerController.GetInstance();
+
+        dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
+
+        dbManager.Reference.Child("Players").Child(pController.CurrentUserId).Child("PlayerInfo").ValueChanged -= HandleChangePlayerInfo;
+
+        dbManager.Reference.Child("Players").Child(pController.CurrentUserId).Child("History").ChildAdded -= HandleHistoryChildAdded;
+        dbManager.Reference.Child("Players").ChildAdded -= HandleLeaderboardChildAdded;
+
+        dbManager.Reference.Child("Players").ChildChanged -= HandleLeaderboardChildChange;
     }
 
     private void Start()
     {
-        if (FirebaseAuth.DefaultInstance.CurrentUser == null)
-            userID = manualUser;
-        else
-            userID = FirebaseAuth.DefaultInstance.CurrentUser.UserId;
-
-        dbManager = ScriptableObject.CreateInstance<DatabaseManager>().GetInstance();
+        loadingScreen.SetActive(true);
 
         TaskEvent += HandleTask;
 
-        pController = PlayerController.GetInstance();
+        Debug.Log("Current User Id : " + pController.CurrentUserId);
+        if(!pController.CheckGuestPlayer())
+        {
+            dbManager.Reference.Child("Players").Child(pController.CurrentUserId).Child("PlayerInfo").ValueChanged += HandleChangePlayerInfo;
 
-        dbManager.Reference.Child("Players").Child(userID).Child("PlayerInfo").ValueChanged += HandleChangePlayerInfo;
+            dbManager.Reference.Child("Players").Child(pController.CurrentUserId).Child("History").ChildAdded += HandleHistoryChildAdded;
 
-        dbManager.Reference.Child("Players").Child(userID).Child("History").ChildAdded += HandleHistoryChildAdded;
+            dbManager.GetLastIndex(pController.CurrentUserId).ContinueWithOnMainThread(task =>
+            {
+                if (task.IsCompleted)
+                {
+                    Debug.Log("Statistic : " + task.Result);
+                    if (task.Result == 0)
+                    {
+                        Debug.Log("Statistic Jalan");
+                        taskStatistic = true;
+                        TaskEvent();
+                    }
+                }
+            });
+        }
+        else
+        {
+            PlayerInfo pInfo = pController.LoadGuestPlayerInfo();
+            List<History> historyList = pController.LoadGuestHistory();
+
+            Debug.Log("Player Win Rate : " + pInfo.WinRate);
+
+            if (pInfo != null)
+                HandlePlayerInfo(pInfo);
+
+            if(historyList != null)
+            {
+                HandleHistory(pController.GetGuestStatistic(historyList));
+            }
+            else {
+                taskStatistic = true;
+                TaskEvent();
+            }
+        }
 
         dbManager.Reference.Child("Players").ChildAdded += HandleLeaderboardChildAdded;
 
@@ -113,13 +177,21 @@ public class MainMenuManager : MonoBehaviour
         characterPage.ShowAllCharacter();
 
         ChangeMenu("Match");
+
+        GameObject.Find("MatchButton").GetComponent<Button>().Select();
+
+        
     }
 
     //Close Loading Screen
     public void HandleTask()
     {
         if (taskLeaderboard && taskProfile && taskNetwork && taskStatistic)
+        {
+            audioSource.Play();
+
             loadingScreen.SetActive(false);
+        }
     }
 
     //Load temp data
@@ -135,29 +207,18 @@ public class MainMenuManager : MonoBehaviour
 
             string json = File.ReadAllText(filename);
 
-            History history = ScriptableObject.CreateInstance<History>();
+            History history = new History();
 
             JsonUtility.FromJsonOverwrite(json, history);
             
             File.Delete(filename);
 
-            dbManager.AddHistory(history, userID).ContinueWithOnMainThread(task =>
-            {
-                if (task.IsCompleted)
-                {
-                    Debug.Log("Store History Success");
-                }
-            });
-
             pInfo.BattlePoint += history.BattlePoint;
 
-            dbManager.UpdatePlayerInfo(userID, pInfo).ContinueWithOnMainThread(task =>
-            {
-                if (task.IsCompleted)
-                {
-                    Debug.Log("Update Player Info Success");
-                }
-            });
+            if (pController == null)
+                pController = PlayerController.GetInstance();
+
+            pController.UpdateUserData(pController.CurrentUserId, pInfo, history);
         }
         else
         {
@@ -168,28 +229,69 @@ public class MainMenuManager : MonoBehaviour
     //Change Content Menu
     public void ChangeMenu(string menuName)
     {
-        Debug.Log(menuName);
+        characterPage.ShowAttribut(null);
+
         switch (menuName)
         {
             case "Character":
                 characterMenu.SetActive(true);
                 matchMenu.SetActive(false);
                 leaderboardMenu.SetActive(false);
+                helpMenu.SetActive(false);
                 break;
             case "Match":
                 characterMenu.SetActive(false);
                 matchMenu.SetActive(true);
                 leaderboardMenu.SetActive(false);
+                helpMenu.SetActive(false);
                 break;
             case "Leaderboard":
                 characterMenu.SetActive(false);
                 matchMenu.SetActive(false);
                 leaderboardMenu.SetActive(true);
+                helpMenu.SetActive(false);
                 break;
             case "Profile":
                 profileMenu.SetActive(!profileMenu.activeInHierarchy);
+                helpMenu.SetActive(false);
+                break;
+            case "Help":
+                helpMenu.SetActive(true);
+                pengenalanMenu.SetActive(true);
+                mapMenu.SetActive(false);
+                break;
+            case "Introduction":
+                pengenalanMenu.SetActive(true);
+                mapMenu.SetActive(false);
+                break;
+            case "Map":
+                pengenalanMenu.SetActive(false);
+                mapMenu.SetActive(true);
                 break;
         }
+    }
+    
+    public void BackButton(GameObject gameObject)
+    {
+        if (gameObject.activeInHierarchy)
+            ChangeMenu("Match");
+        else
+            ChangeMenu("Introduction");
+    }
+    public void Logout()
+    {
+        if (!string.IsNullOrEmpty(PlayerPrefs.GetString("BarenAccount")))
+        {
+            dbManager.UpdateSignedIn(false, pController.CurrentUserId);
+            PlayerPrefs.DeleteKey("BarenAccount");
+        }
+        else if(!pController.CheckGuestPlayer()){
+            dbManager.UpdateSignedIn(false, pController.CurrentUserId);
+            GoogleSignIn.DefaultInstance.SignOut();
+        }
+
+        PhotonNetwork.Disconnect();
+        SceneManager.LoadScene("Authentication");
     }
 
     #region HandleFirebaseChange
@@ -201,11 +303,10 @@ public class MainMenuManager : MonoBehaviour
         if (scene.name != "Menu")
             return;
 
-        profilePage.SetProfileInfo(info, userID);
+        profilePage.SetProfileInfo(info, pController.CurrentUserId);
 
         profilePage.SetPlayerInfo(info);
 
-        MatchMakingManager matchManager = GameObject.Find("MatchManager").GetComponent<MatchMakingManager>().GetInstance();
         matchManager.InitializeNetwork(info.Username);
 
         taskProfile = true;
@@ -237,9 +338,17 @@ public class MainMenuManager : MonoBehaviour
         if (leaderboardList == null)
             leaderboardList = new List<PlayerInfo>();
 
-        leaderboardList.Add(info);
+        if (leaderboardList.Find(p => p.Username == info.Username) != null){
+            int index = leaderboardList.FindIndex(p => p.Username == info.Username);
+            leaderboardList[index] = info;
+        }else
+            leaderboardList.Add(info);
 
-        leaderboardList = leaderboardList.OrderByDescending((PlayerInfo p) => p.BattlePoint).ToList();
+        Debug.Log("Leaderboard : " + info.WinRate);
+
+        leaderboardList = leaderboardList.OrderByDescending(p => p.BattlePoint).ThenByDescending(p => p.WinRate).ToList();
+
+        Debug.Log("Order Leaderboard : " + leaderboardList[0].WinRate);
 
         if(leaderboardList != null && leaderboardList.Count > 0)
             leaderbaordPage.UpdateLeaderboard(leaderboardList);
@@ -273,7 +382,8 @@ public class MainMenuManager : MonoBehaviour
             return;
         }
 
-        //Nilai leaderboard berubah
+        HandleLeaderboard(pController.GetUser(args.Snapshot.Child("PlayerInfo")));
+        Debug.Log("Sender : " + sender + " ARGS : " + args.Snapshot);
     }
 
     public void HandleLeaderboardChildAdded(object sender, ChildChangedEventArgs args)
@@ -289,13 +399,56 @@ public class MainMenuManager : MonoBehaviour
 
     public void HandleHistoryChildAdded(object sender, ChildChangedEventArgs args)
     {
+        Debug.Log("History Kosong : " + args);
+
         if (args.DatabaseError != null)
         {
             Debug.LogError(args.DatabaseError.Message);
             return;
         }
 
-        HandleHistory(pController.GetStatistic(args.Snapshot));
+        if(args.Snapshot != null)
+            HandleHistory(pController.GetStatistic(args.Snapshot));
     }
     #endregion
+
+    public void ShowObject(GameObject go)
+    {
+        go.SetActive(!go.activeInHierarchy);
+    }
+
+    public IEnumerator ActiveObject(GameObject go)
+    {
+        go.SetActive(true);
+        float counter = 5f;
+
+        while(counter > 0)
+        {
+            yield return new WaitForSeconds(1f);
+            counter--;
+        }
+        go.SetActive(false);
+    }
+    
+    public void ShowCircleLoading(bool isActive)
+    {
+        Debug.Log("Circle Loading");
+        circleLoadingScreen.SetActive(isActive);
+        if (isActive)
+            StartCoroutine(StartLoading());
+
+    }
+
+    IEnumerator StartLoading()
+    {
+        float counter = 1f;
+        while (counter >= 0)
+        {
+            yield return new WaitForSeconds(0.02f);
+            circleLoading.fillAmount = counter;
+            counter -= 0.02f;
+        }
+
+        StartCoroutine(StartLoading());
+    }
 }

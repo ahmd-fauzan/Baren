@@ -20,7 +20,7 @@ MonoBehaviour:
     type: 3}
   walkSpeed: 0.5
   runSpeed: 2.5
-  acceleration: 8
-  stamina: 30
-  staminaRegen: 3
+  acceleration: 6
+  stamina: 26
+  staminaRegen: 2
   cost: 20
